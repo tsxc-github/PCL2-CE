@@ -12,6 +12,7 @@
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="40" />
@@ -34,7 +35,8 @@
                     <Image Source="/Plain Craft Launcher 2;component/Images/Heads/PCL-Community.png" Grid.Row="1" Margin="3" x:Name="ImgPCLCommunity"></Image>
                     <local:MyButton Text="赞助原作者" Grid.Column="2" Grid.Row="0" Height="35" EventType="打开网页" EventData="https://afdian.com/a/LTCat" />
                     <local:MyButton Text="GitHub 主页" Grid.Column="2" Grid.Row="1" Height="35" EventType="打开网页" EventData="https://github.com/PCL-Community" />
-                    <local:MyButton Text="查看源代码" Grid.Column="2" Grid.Row="2" Height="35" EventType="打开网页" EventData="https://github.com/PCL-Community/PCL2-CE" />
+                    <local:MyButton Text="MZMC 官网" Grid.Column="2" Grid.Row="2" Height="35" EventType="打开网页" EventData="https://mzmc.top" />
+                    <local:MyButton Text="查看源代码" Grid.Column="2" Grid.Row="3" Height="35" EventType="打开网页" EventData="https://github.com/tsxc-github/PCL2-CE" />
                 </Grid>
             </local:MyCard>
             <local:MyCard Margin="0,0,0,15" Title="特别鸣谢">
@@ -320,7 +322,7 @@ EventType="打开网页" EventData="https://github.com/Kryptos-FR/markdig.wpf/bl
                 EventType="打开网页" EventData="https://github.com/aliostad/CacheCow" />
                     <local:MyButton Grid.Row="35" Grid.Column="3" MinWidth="140" Text="查看许可文档" Padding="13,0" Margin="0,7,20,18" HorizontalAlignment="Left"
 EventType="打开网页" EventData="https://github.com/aliostad/CacheCow/blob/master/LICENSE.txt" />
-                    
+
                     <TextBlock Grid.Row="36" Grid.Column="0" Text="Mesa Loader Windows" TextWrapping="Wrap" FontWeight="Bold" />
                     <TextBlock Grid.Row="36" Grid.Column="2" Grid.ColumnSpan="2" Text="Copyright © 2024 Glavo&#xa;Licensed under the Apache 2 License." TextWrapping="Wrap" />
                     <local:MyButton Grid.Row="37" Grid.Column="2" MinWidth="140" Text="查看来源网站" Padding="13,0" Margin="0,7,20,18" HorizontalAlignment="Left"
