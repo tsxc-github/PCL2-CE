@@ -12,6 +12,7 @@
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="40" />
@@ -20,13 +21,14 @@
                     </Grid.ColumnDefinitions>
                     <local:MyListItem IsHitTestVisible="False" Title="龙腾猫跃" Margin="-5,0,15,0" Info="Plain Craft Launcher 的作者！" Grid.Row="0" Grid.Column="1" />
                     <local:MyListItem IsHitTestVisible="False" Title="PCL Community" Margin="-5,0,15,0" Info="Plain Craft Launcher 社区版的开发团队！" Grid.Row="1" Grid.Column="1" />
-                    <local:MyListItem IsHitTestVisible="False" Title="Plain Craft Launcher 2 Community Edition" Margin="-5,0,15,0" Info="当前版本: %VERSION% (%BRANCH%, %VERSIONCODE%+build.%COMMIT_HASH%, 基于 %UPSTREAM_VERSION%)" Grid.Row="2" Grid.Column="1" x:Name="ItemAboutPcl" />
-                    <Image Source="/Plain Craft Launcher 2;component/Images/Heads/Logo-CE.png" Grid.Row="2" Margin="3" x:Name="ImgPCLLogo">
+                    <local:MyListItem IsHitTestVisible="False" Title="MZMCOS" Margin="-5,0,15,0" Info="Plain Craft Launcher MZMC 特供版的开发团队！" Grid.Row="2" Grid.Column="1" />
+                    <local:MyListItem IsHitTestVisible="False" Title="Plain Craft Launcher 2 MZMC Edition" Margin="-5,0,15,0" Info="当前版本: %VERSION% (%BRANCH%, %VERSIONCODE%+build.%COMMIT_HASH%, 基于 %UPSTREAM_VERSION%)" Grid.Row="3" Grid.Column="1" x:Name="ItemAboutPcl" />
+                    <Image Source="/Plain Craft Launcher 2;component/Images/Heads/LTCat.jpg" Grid.Row="0" Margin="3">
                         <Image.Clip>
                             <EllipseGeometry Center="17 17" RadiusX="17" RadiusY="17" />
                         </Image.Clip>
                     </Image>
-                    <Image Source="/Plain Craft Launcher 2;component/Images/Heads/LTCat.jpg" Grid.Row="0" Margin="3">
+                    <Image Source="/Plain Craft Launcher 2;component/Images/Heads/Logo-CE.png" Grid.Row="3" Margin="3" x:Name="ImgPCLLogo">
                         <Image.Clip>
                             <EllipseGeometry Center="17 17" RadiusX="17" RadiusY="17" />
                         </Image.Clip>
@@ -34,7 +36,8 @@
                     <Image Source="/Plain Craft Launcher 2;component/Images/Heads/PCL-Community.png" Grid.Row="1" Margin="3" x:Name="ImgPCLCommunity"></Image>
                     <local:MyButton Text="赞助作者" Grid.Column="2" Grid.Row="0" Height="35" EventType="打开网页" EventData="https://afdian.com/a/LTCat" />
                     <local:MyButton Text="GitHub 主页" Grid.Column="2" Grid.Row="1" Height="35" EventType="打开网页" EventData="https://github.com/PCL-Community" />
-                    <local:MyButton Text="查看源代码" Grid.Column="2" Grid.Row="2" Height="35" EventType="打开网页" EventData="https://github.com/PCL-Community/PCL2-CE" />
+                    <local:MyButton Text="MZMC 官网" Grid.Column="2" Grid.Row="2" Height="35" EventType="打开网页" EventData="https://mzmc.top" />
+                    <local:MyButton Text="查看源代码" Grid.Column="2" Grid.Row="3" Height="35" EventType="打开网页" EventData="https://github.com/tsxc-github/PCL2-CE" />
                 </Grid>
             </local:MyCard>
             <local:MyCard Margin="0,0,0,15" Title="特别鸣谢">
