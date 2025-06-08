@@ -425,6 +425,7 @@ EndHint:
     Public FrmSetupUI As PageSetupUI
     Public FrmSetupSystem As PageSetupSystem
     Public FrmSetupLink As PageSetupLink
+    Public FrmSetupJava As PageSetupJava
 
     '其他页面声明
     Public FrmOtherLeft As PageOtherLeft
@@ -681,11 +682,11 @@ NextFile:
     ''' 解压内置帮助文件。
     ''' </summary>
     Public Sub HelpExtract()
-        DeleteDirectory(PathTemp & "Help")
-        Directory.CreateDirectory(PathTemp & "Help")
-        WriteFile(PathTemp & "Cache\Help.zip", GetResources("Help"))
-        ExtractFile(PathTemp & "Cache\Help.zip", PathTemp & "Help", Encoding.UTF8)
-        Log("[Help] 已解压内置帮助文件，目前状态：" & File.Exists(PathTemp & "Help\启动器\备份设置.xaml"), LogLevel.Debug)
+        DeleteDirectory(PathTemp & "CE\Help")
+        Directory.CreateDirectory(PathTemp & "CE\Help")
+        WriteFile(PathTemp & "CE\Cache\Help.zip", GetResources("Help"))
+        ExtractFile(PathTemp & "CE\Cache\Help.zip", PathTemp & "CE\Help", Encoding.UTF8)
+        Log("[Help] 已解压内置帮助文件，目前状态：" & File.Exists(PathTemp & "CE\Help\启动器\备份设置.xaml"), LogLevel.Debug)
     End Sub
     ''' <summary>
     ''' 对帮助文件约定的替换标记进行处理，如果遇到需要转义的字符会进行转义。

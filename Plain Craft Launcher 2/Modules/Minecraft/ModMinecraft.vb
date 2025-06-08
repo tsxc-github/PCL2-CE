@@ -262,10 +262,7 @@ Public Module ModMinecraft
         Public ReadOnly Property Modable As Boolean
             Get
                 If Not IsLoaded Then Load()
-                '判断该 LabyMod 是否支持安装 Fabric Mod
-                Dim ModdedLabyMod = False
-                If Version.HasLabyMod AndAlso Directory.Exists(PathIndie & "labymod-neo\fabric\" & Version.McName) Then ModdedLabyMod = True
-                Return Version.HasFabric OrElse Version.HasQuilt OrElse Version.HasForge OrElse Version.HasLiteLoader OrElse Version.HasNeoForge OrElse Version.HasCleanroom OrElse ModdedLabyMod OrElse
+                Return Version.HasFabric OrElse Version.HasQuilt OrElse Version.HasForge OrElse Version.HasLiteLoader OrElse Version.HasNeoForge OrElse Version.HasCleanroom OrElse
                     DisplayType = McVersionCardType.API '#223
             End Get
         End Property
@@ -1367,7 +1364,11 @@ OnLoaded:
             If File.Exists(VersionFolder & ".pclignore") Then
                 If IsFirstMcVersionListLoad Then
                     Log("[Minecraft] 清理残留的忽略项目：" & VersionFolder) '#2781
-                    File.Delete(VersionFolder & ".pclignore")
+                    Try
+                        File.Delete(VersionFolder & ".pclignore")
+                    Catch ex As Exception
+                        Log(ex, "清理残留的忽略项目失败（" & VersionFolder & "）", LogLevel.Hint)
+                    End Try
                 Else
                     Log("[Minecraft] 跳过要求忽略的项目：" & VersionFolder)
                     Continue For
