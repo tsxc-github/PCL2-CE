@@ -2,7 +2,7 @@ name: Build Test
 
 on:
   push:
-    branches: [dev]
+    branches: [mzmc,dev]
     paths:
       - 'Plain Craft Launcher 2/**'
       - '.github/workflows/**'

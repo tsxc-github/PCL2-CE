@@ -51,5 +51,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Update update file
-        uses: ./.github/workflows/release-update.yml
+  Update_update_file:
+    uses: ./.github/workflows/release-update.yml
+    needs: rename_and_release

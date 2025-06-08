@@ -1,7 +1,7 @@
 name: release-update
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 jobs: 
   run:
