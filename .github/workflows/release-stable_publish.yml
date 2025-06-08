@@ -52,5 +52,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
   Update_update_file:
-    uses: ./.github/workflows/release-update.yml
+    uses: tsxc-github/PCL-CE/.github/workflows/release-update.yml@mzmc
     needs: rename_and_release
+    secrets: inherit
+    
