@@ -1174,6 +1174,8 @@
     <Resource Include="Images\Heads\Pysio.jpg" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Images\Heads\mzmc.png" />
+    <Resource Include="Images\Heads\dev_logo.png" />
     <Content Include="Resources\linkd.exe" />
     <Content Include="Resources\SQLite.Interop.dll" />
   </ItemGroup>

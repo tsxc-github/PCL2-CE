@@ -81,15 +81,14 @@ Friend Module ModSecret
     ''' </summary>
     ''' <param name="IsUpdate">是否为更新时启动</param>
     Public Sub ShowCEAnnounce(Optional IsUpdate As Boolean = False)
-        MyMsgBox($"你正在使用来自 PCL-Community 的 PCL 社区版本，遇到问题请不要向官方仓库反馈！
-PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的使用做担保。
+        MyMsgBox($"你正在使用来自 绵中方块人服务器管理组（技术部） 的 PCL-CE 特供版本，遇到问题请不要向官方仓库反馈！
+绵中方块人服务器管理组（技术部）及其成员与 PCL-Community、龙腾猫跃 无从属关系，且均不会为您的使用做担保。
 
-如果你是意外下载的社区版，建议下载官方版 PCL 使用。
-
-该版本与官方版本的特性区别：
-- 联网通知：暂时没有，在做了在做了.jpg
+该版本与 PCL 官方版本的特性区别：
+- 包含 MZMC 相关内容
+- 包含 PCL-CE 的拓展功能
 - 主题切换：不会制作，这是需要赞助解锁的纪念性质的功能
-- 百宝箱：部分内容更改和缺失，主线分支没有提供相关内容{If(IsUpdate, $"{vbCrLf}{vbCrLf}该提示总会在更新启动器时展示一次。", "")}", "社区版本说明", "我知道了")
+- 百宝箱：部分内容更改和缺失，主线分支没有提供相关内容{If(IsUpdate, $"{vbCrLf}{vbCrLf}该提示总会在更新启动器时展示一次。", "")}", "特供版本说明", "我知道了")
     End Sub
 
     Private _RawCodeCache As String = Nothing
