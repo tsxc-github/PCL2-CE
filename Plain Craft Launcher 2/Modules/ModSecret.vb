@@ -745,8 +745,8 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
     Public IsCheckingUpdates As Boolean = False
     Public IsUpdateWaitingRestart As Boolean = False
     Public RemoteServer As New List(Of IUpdateSource) From {
-        New UpdatesMinioModel("https:/edgeone.update.pcl.mzmcos.tsxc.xyz/", "edgeone"),
-        New UpdatesMinioModel("https:/cloudflare.update.pcl.mzmcos.tsxc.xyz/", "CloudFlare"),
+        New UpdatesMinioModel("https://edgeone.update.pcl.mzmcos.tsxc.xyz/", "edgeone"),
+        New UpdatesMinioModel("https://cloudflare.update.pcl.mzmcos.tsxc.xyz/", "CloudFlare"),
         New UpdatesMinioModel("https://github.com/tsxc-github/PCL2_CE_Server/raw/main/", "GitHub")
     }
     Public LatestVersion As VersionDataModel = Nothing
