@@ -52,3 +52,6 @@ jobs:
             PCL2_CE_${{ matrix.configuration }}_${{ matrix.architecture }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update update file
+        uses: ./.github/workflows/release-update.yml
