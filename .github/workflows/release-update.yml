@@ -2,7 +2,9 @@ name: release-update
 
 on:
   workflow_call:
-
+  push:
+    branches:
+      - empty
 jobs: 
   run:
     runs-on: ubuntu-latest
