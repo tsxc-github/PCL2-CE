@@ -299,6 +299,9 @@
     <Compile Include="Pages\PageLaunch\PageLoginOffline.xaml.vb">
       <DependentUpon>PageLoginOffline.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\PageOther\PageMZMCSettings.xaml.vb">
+      <DependentUpon>PageMZMCSettings.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\PageSetup\PageSetupJava.xaml.vb">
       <DependentUpon>PageSetupJava.xaml</DependentUpon>
     </Compile>
@@ -731,6 +734,10 @@
     <Page Include="Pages\PageLogLeft.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\PageOther\PageMZMCSettings.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="Pages\PageOther\PageOtherVote.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -1190,6 +1197,9 @@
       <Project>{a0c2209d-64fb-4c11-9459-8e86304b6f94}</Project>
       <Name>PCL.Core</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Pages\MZMC\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

@@ -458,6 +458,9 @@ EndHint:
     '资源信息分页声明
     Public FrmDownloadCompDetail As PageDownloadCompDetail
 
+    'MZMC 页面声明
+    Public FrmMZMCSettings As PageMZMCSettings
+
 #End Region
 
 #Region "帮助"

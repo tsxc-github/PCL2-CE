@@ -912,6 +912,7 @@ Public Class FormMain
         OtherTest = 2
         OtherFeedback = 3
         OtherVote = 4
+        MZMCSettings = 5
         VersionOverall = 0
         VersionSetup = 1
         VersionExport = 2
