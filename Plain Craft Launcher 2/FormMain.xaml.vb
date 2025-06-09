@@ -1034,6 +1034,7 @@ Public Class FormMain
         OtherTest = 2
         OtherFeedback = 3
         OtherLog = 5
+        MZMCSettings = 6
         VersionOverall = 0
         VersionSetup = 1
         VersionExport = 2
