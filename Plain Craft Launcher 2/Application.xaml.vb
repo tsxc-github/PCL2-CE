@@ -20,6 +20,8 @@ Public Class Application
 
     '开始
     Private Sub Application_Startup(sender As Object, e As StartupEventArgs) Handles Me.Startup
+        '执行MZMC相关代码
+        PCL.Core.MZMC.Init.Main()
         Try
             '创建自定义跟踪监听器，用于检测是否存在 Binding 失败
             PresentationTraceSources.DataBindingSource.Listeners.Add(New BindingErrorTraceListener())
