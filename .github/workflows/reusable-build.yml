@@ -33,6 +33,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: ${{ inputs.architecture }}
+          vs-prerelease: true
 
       - name: Update Help
         run: |
