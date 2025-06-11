@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - 'Plain Craft Launcher 2/**'
+      - 'Plain Craft Launcher 2.sln'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -16,13 +17,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - configuration: Beta
+          - configuration: DebugCI
             architecture: x64
-          - configuration: Beta
-            architecture: ARM64
-          - configuration: Release
-            architecture: x64
-          - configuration: Release
+          - configuration: DebugCI
             architecture: ARM64
       fail-fast: false
 

@@ -119,7 +119,7 @@ WaitRetry:
             '日志初始化
             LogStart()
             '添加日志
-            Log($"[Start] 程序版本：{VersionBaseName} ({VersionBranchName}, {VersionCode}{If(CommitHash = "", "", $"，#{CommitHash}")})")
+            Log($"[Start] 程序版本：{VersionBaseName} (Channel: {VersionBranchName},Code: {VersionCode}{If(CommitHash = "", "", $"，#{CommitHash}")})")
             Log($"[Start] 识别码：{UniqueAddress}")
             Log($"[Start] 程序路径：{PathWithName}")
             Log($"[Start] 系统版本：{Environment.OSVersion.Version}, 架构：{Runtime.InteropServices.RuntimeInformation.OSArchitecture}")
@@ -159,8 +159,9 @@ WaitRetry:
             If Not File.Exists(WebpPath) Then WriteFile(WebpPath, GetResources("libwebp64"))
             Dim SqlPath = $"{PathPure}CE\SQLite.Interop.dll"
             If Not File.Exists(SqlPath) Then WriteFile(SqlPath, GetResources("SQLite"))
-            If Not Directory.Exists(PathPure & "CE\" & "runtimes") Then
-                WriteFile(PathPure & "CE\" & "msalruntime.zip", GetResources("msalruntime"))
+            WriteFile(PathPure & "CE\" & "msalruntime.zip", GetResources("msalruntime"))
+            If Not File.Exists(PathPure & "CE\msalruntime.dll") Then
+                If Directory.Exists(PathPure & "CE\runtimes") Then DeleteDirectory(PathPure & "CE\runtimes")
                 Using fs = New FileStream(PathPure & "CE\" & "msalruntime.zip", FileMode.Open)
                     Using fszip = New ZipArchive(fs)
                         fszip.ExtractToDirectory(PathPure & "CE\")
@@ -171,6 +172,8 @@ WaitRetry:
             ServicePointManager.Expect100Continue = True
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 Or SecurityProtocolType.Tls Or SecurityProtocolType.Tls11 Or SecurityProtocolType.Tls12 Or SecurityProtocolType.Tls13
             ServicePointManager.DefaultConnectionLimit = 1024
+            'Pipe RPC 初始化
+            StartEchoPipe()
             '设置字体
             Dim TargetFont As String = Setup.Get("UiFont")
             If Not String.IsNullOrEmpty(TargetFont) Then

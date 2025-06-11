@@ -22,15 +22,15 @@ Public Module ModBase
     Public Const UpstreamVersion As String = "2.11.2-beta.3" '上游版本
     Public Const VersionCode As Integer = 3 '内部版本号
     '自动生成的版本信息
-#If RELEASE Then
-    Public Const VersionBranchName As String = "Slow Ring"
-    Public Const VersionBranchCode As String = "0"
-#ElseIf BETA Then
-    Public Const VersionBranchName As String = "Fast Ring"
-    Public Const VersionBranchCode As String = "50"
-#Else
+#If DEBUG Then
     Public Const VersionBranchName As String = "Debug"
     Public Const VersionBranchCode As String = "100"
+#ElseIf DEBUGCI Then
+    Public Const VersionBranchName As String = "CI"
+    Public Const VersionBranchCode As String = "50"
+#Else
+    Public Const VersionBranchName As String = "Publish"
+    Public Const VersionBranchCode As String = "0"
 #End If
 
     ''' <summary>
@@ -1317,6 +1317,7 @@ Re:
         ''' </summary>
         Public Function Check(LocalPath As String) As String
             Try
+                Log($"[Checker] 开始校验文件 {LocalPath}", LogLevel.Debug)
                 Dim Info As New FileInfo(LocalPath)
                 If Not Info.Exists Then Return "文件不存在：" & LocalPath
                 Dim FileSize As Long = Info.Length
@@ -3187,7 +3188,7 @@ Retry:
         Else
             LogList.Append(AppendText)
         End If
-#If DEBUG Then
+#If DEBUG Or DEBUGCI Then
         Console.Write(AppendText)
 #End If
         If IsProgramEnded OrElse Level = LogLevel.Normal Then Return
@@ -3251,7 +3252,7 @@ Retry:
         Else
             LogList.Append(AppendText)
         End If
-#If DEBUG Then
+#If DEBUG Or DEBUGCI Then
         Console.Write(AppendText)
 #End If
         If IsProgramEnded Then Return

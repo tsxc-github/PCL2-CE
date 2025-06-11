@@ -751,6 +751,11 @@ Friend Module ModSecret
     }
     Public LatestVersion As VersionDataModel = Nothing
     Public LatestAnnouncement As AnnouncementInfoModel = Nothing
+    Public ReadOnly Property IsUpdBetaChannel
+        Get
+            Return Setup.Get("SystemSystemUpdateBranch") = 1
+        End Get
+    End Property
 
     Public Sub UpdateCheckByButton()
         If IsCheckingUpdates Then
@@ -769,13 +774,12 @@ Friend Module ModSecret
                        End Sub)
     End Sub
     Private Sub RefreshUpdatesCache()
-        Dim IsBeta As Boolean = Setup.Get("SystemSystemUpdateBranch") = 1
         '更新源
         For Each source In RemoteServer
             Try
                 If Not source.IsAvailable() Then Throw New Exception("此更新源不可用")
                 source.EnsureLatestData()
-                LatestVersion = source.GetLatestVersion(If(IsBeta, UpdateChannel.beta, UpdateChannel.stable), If(IsArm64System, UpdateArch.arm64, UpdateArch.x64))
+                LatestVersion = source.GetLatestVersion(If(IsUpdBetaChannel, UpdateChannel.beta, UpdateChannel.stable), If(IsArm64System, UpdateArch.arm64, UpdateArch.x64))
                 Exit For
             Catch ex As Exception
                 Log(ex, $"[System] 更新：{source.SourceName} 不可用，换下一个")
@@ -1049,7 +1053,7 @@ Friend Module ModSecret
             {"Is64Bit", Not Is32BitSystem},
             {"IsARM64", IsArm64System},
             {"Launcher", VersionCode},
-            {"LauncherBranch", VersionBranchName},
+            {"LauncherBranch", If(IsUpdBetaChannel, "Fast Ring", "Slow Ring")},
             {"UsedOfficialPCL", ReadReg("SystemEula", Nothing, "PCL") IsNot Nothing},
             {"UsedHMCL", Directory.Exists(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) & "\.hmcl")},
             {"UsedBakaXL", Directory.Exists(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) & "\BakaXL")},

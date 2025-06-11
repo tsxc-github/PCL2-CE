@@ -1262,6 +1262,12 @@ LoginFinish:
             End If
         End If
 
+        'LabyMod 检测
+        If McVersionCurrent.Version.HasLabyMod Then
+            MinVer = If(New Version(21, 0, 0, 0) > MinVer, New Version(21, 0, 0, 0), MinVer)
+            MaxVer = New Version(999, 999, 999, 999)
+        End If
+
         SyncLock JavaLock
 
             '选择 Java
@@ -2279,7 +2285,11 @@ NextVersion:
         '显示实时日志
         If CurrentLaunchOptions.Test Then
             If FrmLogLeft Is Nothing Then RunInUiWait(Sub() FrmLogLeft = New PageLogLeft)
-            If FrmLogRight Is Nothing Then RunInUiWait(Sub() FrmLogRight = New PageLogRight)
+            If FrmLogRight Is Nothing Then RunInUiWait(Sub()
+                                                           AniControlEnabled += 1
+                                                           FrmLogRight = New PageLogRight
+                                                           AniControlEnabled -= 1
+                                                       End Sub)
             FrmLogLeft.Add(Watcher)
             McLaunchLog("已显示游戏实时日志")
         End If
