@@ -30,8 +30,10 @@ jobs:
           echo "describe=$describe" >> $GITHUB_ENV
 
       - name: Setup MSBuild.exe
-        run: |
-          choco install visualstudio2022buildtools --package-parameters "--allWorkloads --includeRecommended --includeOptional --passive --locale en-US"
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: ${{ inputs.architecture }}
+          vs-prerelease: true
 
       - name: Update Help
         run: |
