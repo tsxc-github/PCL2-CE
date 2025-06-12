@@ -1,5 +1,6 @@
 ﻿Imports PCL.Core.Helper
 Imports PCL.Core.Model
+Imports System.Threading.Tasks
 
 Public Module ModJava
     Public JavaListCacheVersion As Integer = 7
@@ -15,25 +16,25 @@ Public Module ModJava
         End Get
     End Property
 
-    Private _javaInitTask As Tasks.Task = Nothing
+    Private _javaInitTask As Task = Nothing
     Private ReadOnly _javasInitLock As New Object
-    Public Function InitJava() As Tasks.Task
+    Public Function InitJava() As Task
         SyncLock _javasInitLock
             If _javas IsNot Nothing Then
-                Return Tasks.Task.CompletedTask
+                Return Task.CompletedTask
             End If
             If _javaInitTask Is Nothing Then
-                _javaInitTask = Tasks.Task.Run(Sub()
-                                                   Dim storeCache = JavaGetCache()
-                                                   _javas = New JavaManage()
-                                                   If storeCache IsNot Nothing Then
-                                                       _javas.SetCache(storeCache)
-                                                   End If
-                                                   Log("[Java] 开始搜索 Java")
-                                                   _javas.ScanJava().GetAwaiter().GetResult()
-                                                   JavaSetCache(_javas.GetCache())
-                                                   Log("[Java] 搜索到如下 Java:" & vbCrLf & _javas.JavaList.Select(Function(x) x.ToString()).Join(vbCrLf))
-                                               End Sub)
+                _javaInitTask = Task.Run(Sub()
+                                             Dim storeCache = JavaGetCache()
+                                             _javas = New JavaManage()
+                                             If storeCache IsNot Nothing Then
+                                                 _javas.SetCache(storeCache)
+                                             End If
+                                             Log("[Java] 开始搜索 Java")
+                                             _javas.ScanJava().GetAwaiter().GetResult()
+                                             JavaSetCache(_javas.GetCache())
+                                             Log("[Java] 搜索到如下 Java:" & vbCrLf & _javas.JavaList.Select(Function(x) x.ToString()).Join(vbCrLf))
+                                         End Sub)
             End If
             Return _javaInitTask
         End SyncLock
@@ -107,15 +108,16 @@ Public Module ModJava
             Return userGlobalJavaSet
         End If
         '寻找合适 Java
-        Javas.ScanJava()
-        JavaSetCache(Javas.GetCache())
+        Javas.CheckJavaAvailability()
         Dim reqMin = If(MinVersion, New Version(1, 0, 0))
         Dim reqMax = If(MaxVersion, New Version(999, 999, 999))
         Dim ret = Javas.SelectSuitableJava(reqMin, reqMax).Result.FirstOrDefault()
-        If ret Is Nothing AndAlso reqMin.Major = 1 AndAlso reqMin.Minor = 8 Then
-            ret = Javas.SelectSuitableJava(New Version(8, 0, 0, 0), If(reqMax.Major = 1, New Version(reqMax.Minor, 999, 999, 999), reqMax)).Result.FirstOrDefault()
+        If ret Is Nothing Then
+            Log("[Java] 没有找到合适的 Java 开始尝试重新搜索后选择")
+            Javas.ScanJava().GetAwaiter().GetResult()
+            ret = Javas.SelectSuitableJava(reqMin, reqMax).Result.FirstOrDefault()
         End If
-        Log($"[Java] 返回自动选择的 Java {ret.ToString()}")
+        Log($"[Java] 返回自动选择的 Java {If(ret IsNot Nothing, ret.ToString(), "无结果")}")
         Return ret
     End Function
 
@@ -153,7 +155,7 @@ Public Module ModJava
                         Dim k = Java.Parse(UserSetupVersion)
                         Return k IsNot Nothing AndAlso k.Is64Bit
                     Else
-                        Setup.Set("VersionArgumentJavaSelect", "", Version:=RelatedVersion)
+                        Setup.Reset("VersionArgumentJavaSelect", Version:=RelatedVersion)
                     End If
                 End If
             End If
@@ -168,7 +170,7 @@ Public Module ModJava
             Return j IsNot Nothing AndAlso j.Is64Bit
         Catch ex As Exception
             Log(ex, "检查 Java 类别时出错", LogLevel.Feedback)
-            If RelatedVersion IsNot Nothing Then Setup.Set("VersionArgumentJavaSelect", "", Version:=RelatedVersion)
+            If RelatedVersion IsNot Nothing Then Setup.Reset("VersionArgumentJavaSelect", Version:=RelatedVersion)
             Setup.Set("LaunchArgumentJavaSelect", "")
         End Try
         Return True
