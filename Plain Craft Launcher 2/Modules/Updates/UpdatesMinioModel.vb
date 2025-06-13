@@ -39,6 +39,12 @@
         ChannelName += If(channel = UpdateChannel.stable, "sr", "fr")
         ChannelName += arch.ToString()
         Dim targetData = _remoteVersionData.assets.Where(Function(x) x.version.channel = ChannelName).First()
+        IF channel = UpdateChannel.beta
+            Dim srVersion As VersionDataModel = GetLatestVersion(UpdateChannel.stable, arch)
+            if srVersion.version_code > targetData.version.code Then
+                Return srVersion
+            End If
+        End If
         Return New VersionDataModel() With {
             .Source = SourceName,
             .IsArchive = True,
