@@ -1,6 +1,7 @@
-﻿Imports System.ComponentModel
+Imports System.ComponentModel
 Imports System.Runtime.InteropServices
 Imports System.Windows.Interop
+Imports PCL.Core.LifecycleManagement
 
 Public Class FormMain
 
@@ -17,7 +18,7 @@ Public Class FormMain
             Else
                 Changelog = "欢迎使用呀~"
             End If
-            If MyMsgBox(Changelog, "PCL CE 已更新至 " & VersionBranchName & " " & VersionBaseName, "确定", "完整更新日志") = 2 Then
+            If MyMsgBoxMarkdown(Changelog, "PCL CE 已更新至 " & VersionBranchName & " " & VersionBaseName, "确定", "完整更新日志") = 2 Then
                 OpenWebsite("https://github.com/PCL-Community/PCL2-CE/releases")
             End If
         End Sub, "UpdateLog Output")
@@ -83,8 +84,11 @@ Public Class FormMain
         McFolderListLoader.Start(0) '为了让下载已存在文件检测可以正常运行，必须跑一次；为了让启动按钮尽快可用，需要尽早执行；为了与 PageLaunchLeft 联动，需要为 0 而不是 GetUuid
 
         Log("[Start] 第二阶段加载用时：" & GetTimeTick() - ApplicationStartTick & " ms")
+        '注册生命周期状态事件
+        Lifecycle.When(LifecycleState.WindowCreated, AddressOf FormMain_Loaded)
     End Sub
-    Private Sub FormMain_Loaded(sender As Object, e As RoutedEventArgs) Handles Me.Loaded
+
+    Private Sub FormMain_Loaded() '(sender As Object, e As RoutedEventArgs) Handles Me.Loaded
         ApplicationStartTick = GetTimeTick()
         Handle = New WindowInteropHelper(Me).Handle
         '读取设置
@@ -102,15 +106,10 @@ Public Class FormMain
         BtnExtraLog.ShowCheck = AddressOf BtnExtraLog_ShowCheck
         BtnExtraApril.ShowRefresh()
         '初始化尺寸改变
-        Dim Resizer As New MyResizer(Me)
-        Resizer.addResizerDown(ResizerB)
-        Resizer.addResizerLeft(ResizerL)
-        Resizer.addResizerLeftDown(ResizerLB)
-        Resizer.addResizerLeftUp(ResizerLT)
-        Resizer.addResizerRight(ResizerR)
-        Resizer.addResizerRightDown(ResizerRB)
-        Resizer.addResizerRightUp(ResizerRT)
-        Resizer.addResizerUp(ResizerT)
+        Resizer = New MyResizer(Me)
+        If Not Setup.Get("UiLockWindowSize") Then
+            AddResizer()
+        End If
         'PLC 彩蛋
         If RandomInteger(1, 1000) = 233 Then
             ShapeTitleLogo.Data = New GeometryConverter().ConvertFromString("M26,29 v-25 h6 a7,7 180 0 1 0,14 h-6 M83,6.5 a10,11.5 180 1 0 0,18 M48,2.5 v24.5 h13.5")
@@ -127,6 +126,13 @@ Public Class FormMain
         End Select
 
         ThemeRefresh()
+
+        If Setup.Get("UiBlur") Then
+            Application.Current.Resources("BlurValue") = CType(Setup.Get("UiBlurValue"), Double)
+        Else
+            Application.Current.Resources("BlurValue") = CType(0, Double)
+        End If
+
         Try
             Height = Setup.Get("WindowHeight")
             Width = Setup.Get("WindowWidth")
@@ -135,10 +141,10 @@ Public Class FormMain
             Height = MinHeight + 100
             Width = MinWidth + 100
         End Try
-#If DEBUG Then
-        MinHeight = 50
-        MinWidth = 50
-#End If
+        '#If DEBUG Then
+        '        MinHeight = 50
+        '        MinWidth = 50
+        '#End If
         Topmost = False
         If FrmStart IsNot Nothing Then FrmStart.Close(New TimeSpan(0, 0, 0, 0, 400 / AniSpeed))
         '更改窗口
@@ -183,10 +189,10 @@ Public Class FormMain
 #End If
                 MyMsgBox($"{hint}{vbCrLf}{vbCrLf}可以添加 PCL_DISABLE_DEBUG_HINT 环境变量 (任意值) 来隐藏这个提示。",
                          "特殊版本提示", "我清楚我在做什么", "打开最新版下载页并退出", IsWarn:=True,
-                         Button2Action := Sub()
-                             OpenWebsite("https://github.com/PCL-Community/PCL2-CE/releases/latest")
-                             EndProgram(False)
-                         End Sub)
+                         Button2Action:=Sub()
+                                            OpenWebsite("https://github.com/PCL-Community/PCL2-CE/releases/latest")
+                                            EndProgram(False)
+                                        End Sub)
             End If
 #End If
             'EULA 提示
@@ -217,7 +223,7 @@ Public Class FormMain
             End If
             '启动加载器池
             Try
-                InitJava().GetAwaiter().GetResult()
+                InitJava()
                 Thread.Sleep(100)
                 DlClientListMojangLoader.Start(1) 'PCL 会同时根据这里的加载结果决定是否使用官方源进行下载
                 RunCountSub()
@@ -225,6 +231,28 @@ Public Class FormMain
                 RunInNewThread(AddressOf TryClearTaskTemp, "TryClearTaskTemp", ThreadPriority.BelowNormal)
             Catch ex As Exception
                 Log(ex, "初始化加载池运行失败", LogLevel.Feedback)
+            End Try
+            '联机摇号
+            Try
+                Dim DateNow As String = Now.ToString("yyyyMMdd")
+                If Not Setup.Get("LinkAvailable") AndAlso Not DateNow = Setup.Get("LinkLastTestDate") Then
+                    Dim Chance As Double = 0
+                    Dim ServerNumber As Integer = 0
+Retry:
+                    Try
+                        Chance = Val(NetRequestOnce($"{LinkServers(ServerNumber)}/api/link/lottery.ini", "GET", Nothing, "application/json", Timeout:=7000))
+                    Catch ex As Exception
+                        Log(ex, $"[Link] 从服务器 {ServerNumber} 获取摇号数据失败")
+                        ServerNumber += 1
+                        If ServerNumber <= LinkServers.Count - 1 Then GoTo Retry
+                    End Try
+                    Dim Num As Integer = RandomInteger(0, 100)
+                    If Num > 1 - (Chance * 100) Then Setup.Set("LinkAvailable", True)
+                    Setup.Set("LinkLastTestDate", DateNow)
+                    Log($"[Link] 摇号 {Num} ({DateNow})")
+                End If
+            Catch ex As Exception
+                Log(ex, "联机摇号失败")
             End Try
             '清理自动更新文件
             Try
@@ -235,8 +263,6 @@ Public Class FormMain
             GetCoR() '获取区域限制状态
             GetSystemInfo()
         End Sub, "Start Loader", ThreadPriority.Lowest)
-        '剪贴板识别
-        If Setup.Get("ToolDownloadClipboard") Then RunInNewThread(Sub() CompClipboard.ClipboardListening(), "Clipboard Listener", ThreadPriority.Lowest)
 
         Log("[Start] 第三阶段加载用时：" & GetTimeTick() - ApplicationStartTick & " ms")
     End Sub
@@ -370,7 +396,8 @@ Public Class FormMain
             End If
         End If
         '关闭 EasyTier 联机
-        If ModLink.IsETRunning Then ModLink.ExitEasyTier()
+        ModLink.ExitEasyTier()
+        StopMcPortForward()
         '存储上次使用的档案编号
         SaveProfile()
         '关闭
@@ -409,7 +436,8 @@ Public Class FormMain
     Public Shared Sub EndProgramForce(Optional ReturnCode As ProcessReturnValues = ProcessReturnValues.Success)
         On Error Resume Next
         '关闭 EasyTier 联机
-        If ModLink.IsETRunning Then ModLink.ExitEasyTier()
+        ModLink.ExitEasyTier()
+        StopMcPortForward()
         IsProgramEnded = True
         AniControlEnabled += 1
         If IsUpdateWaitingRestart Then UpdateRestart(False)
@@ -423,9 +451,9 @@ Public Class FormMain
             Thread.Sleep(500) '防止 PCL 在记事本打开前就被掐掉
         End If
         Log("[System] 程序已退出，返回值：" & GetStringFromEnum(ReturnCode))
-        LogFlush()
-        If ReturnCode <> ProcessReturnValues.Success Then Environment.Exit(ReturnCode)
-        Process.GetCurrentProcess.Kill()
+        'If ReturnCode <> ProcessReturnValues.Success Then Environment.Exit(ReturnCode)
+        'Process.GetCurrentProcess.Kill()
+        Lifecycle.ForceShutdown(ReturnCode)
     End Sub
     Private Sub BtnTitleClose_Click(sender As Object, e As RoutedEventArgs) Handles BtnTitleClose.Click
         EndProgram(True)
@@ -468,10 +496,23 @@ Public Class FormMain
     Private Sub BtnTitleMin_Click() Handles BtnTitleMin.Click
         WindowState = WindowState.Minimized
     End Sub
-
 #End Region
 
 #Region "窗体事件"
+    Private Resizer
+    Public Sub AddResizer()
+        Resizer.addResizerDown(ResizerB)
+        Resizer.addResizerLeft(ResizerL)
+        Resizer.addResizerLeftDown(ResizerLB)
+        Resizer.addResizerLeftUp(ResizerLT)
+        Resizer.addResizerRight(ResizerR)
+        Resizer.addResizerRightDown(ResizerRB)
+        Resizer.addResizerRightUp(ResizerRT)
+        Resizer.addResizerUp(ResizerT)
+    End Sub
+    Public Sub RemoveResizer()
+        Resizer.removeAllResizers()
+    End Sub
 
     '按键事件
     Private Sub FormMain_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown
@@ -547,6 +588,7 @@ Public Class FormMain
     '切回窗口
     Private Sub FormMain_Activated() Handles Me.Activated
         Try
+            If Setup.Get("ToolDownloadClipboard") Then CompClipboard.GetClipboardResource()
             If PageCurrent = PageType.VersionSetup AndAlso PageCurrentSub = PageSubType.VersionMod Then
                 'Mod 管理自动刷新
                 FrmVersionMod.ReloadCompFileList()
@@ -659,13 +701,16 @@ Public Class FormMain
             End If
             '多文件拖拽
             If FilePathList.Count > 1 Then
-                '必须要求全部为 Jar 文件
-                For Each File In FilePathList
-                    If Not {"jar", "litemod", "disabled", "old"}.Contains(File.AfterLast(".").ToLower) Then
-                        Hint("一次请只拖入一个文件！", HintType.Critical)
-                        Return
-                    End If
-                Next
+                '检查是否为同类型文件
+                Dim FirstExtension = FilePathList.First.AfterLast(".").ToLower
+                Dim AllSameType = FilePathList.All(Function(f) f.AfterLast(".").ToLower = FirstExtension)
+                
+                If AllSameType AndAlso {"jar", "litemod", "disabled", "old", "litematic", "nbt", "schematic", "schem"}.Contains(FirstExtension) Then
+                    '允许同类型的 Mod 文件或投影文件批量拖拽
+                Else
+                    Hint("一次请只拖入相同类型的文件！", HintType.Critical)
+                    Return
+                End If
             End If
             '主页
             Dim Extension As String = FilePath.AfterLast(".").ToLower
@@ -687,6 +732,18 @@ Public Class FormMain
             End If
             '安装 Mod
             If PageVersionCompResource.InstallMods(FilePathList) Then Exit Sub
+            '安装投影文件
+            If {"litematic", "nbt", "schematic", "schem"}.Contains(Extension) Then
+                Log($"[System] 文件为 {Extension} 格式，尝试作为原理图安装")
+                ' 获取当前文件夹路径（如果在资源管理页面）
+                Dim targetFolderPath As String = Nothing
+                If PageCurrent = PageType.VersionSetup AndAlso PageCurrentSub = PageSubType.VersionSchematic AndAlso 
+                   FrmVersionSchematic IsNot Nothing AndAlso TypeOf FrmVersionSchematic Is PageVersionCompResource Then
+                    targetFolderPath = DirectCast(FrmVersionSchematic, PageVersionCompResource).CurrentFolderPath
+                End If
+                PageVersionCompResource.InstallCompFiles(FilePathList, CompType.Schematic, targetFolderPath)
+                Exit Sub
+            End If
             '处理资源安装
             If PageCurrent = PageType.VersionSetup AndAlso {"zip"}.Any(Function(i) i = Extension) Then
                 Select Case PageCurrentSub
@@ -698,7 +755,7 @@ Public Class FormMain
                         End If
                         ExtractFile(FilePath, DestFolder)
                         Hint($"已导入 {GetFileNameWithoutExtentionFromPath(FilePath)}", HintType.Finish)
-                        If FrmVersionWorld IsNot Nothing Then RunInUi(Sub() FrmVersionWorld.Reload())
+                        If FrmVersionSaves IsNot Nothing Then RunInUi(Sub() FrmVersionSaves.Reload())
                         Exit Sub
                     Case PageSubType.VersionResourcePack
                         Dim DestFile = PageVersionLeft.Version.PathIndie + "resourcepacks\" + GetFileNameFromPath(FilePath)
@@ -722,6 +779,19 @@ Public Class FormMain
                         Exit Sub
                 End Select
             End If
+            '处理投影文件
+            If PageCurrent = PageType.VersionSetup AndAlso {"litematic", "nbt", "schematic", "schem"}.Contains(Extension) AndAlso PageCurrentSub = PageSubType.VersionSchematic Then
+                Dim DestFile = PageVersionLeft.Version.PathIndie + "schematics\" + GetFileNameFromPath(FilePath)
+                If File.Exists(DestFile) Then
+                    Hint("已存在同名文件：" + DestFile, HintType.Critical)
+                    Exit Sub
+                End If
+                Directory.CreateDirectory(PageVersionLeft.Version.PathIndie + "schematics\")
+                CopyFile(FilePath, DestFile)
+                Hint($"已导入 {GetFileNameFromPath(FilePath)}", HintType.Finish)
+                If FrmVersionSchematic IsNot Nothing Then RunInUi(Sub() FrmVersionSchematic.ReloadCompFileList())
+                Exit Sub
+            End If
             '安装整合包
             If {"zip", "rar", "mrpack"}.Any(Function(t) t = Extension) Then '部分压缩包是 zip 格式但后缀为 rar，总之试一试
                 Log("[System] 文件为压缩包，尝试作为整合包安装")
@@ -732,6 +802,17 @@ Public Class FormMain
                     Return '用户主动取消
                 Catch ex As Exception
                     '安装失败，继续往后尝试
+                End Try
+            End If
+            If {"zip", "rar"}.Any(Function(t) t = Extension) Then
+                Log("[System] 文件为压缩包，尝试作为存档分析")
+                Try
+                    ReadWorld(FilePath)
+                    Return
+                Catch ex As CancelledException
+                    Return '是存档，但是损坏了
+                Catch ex As Exception
+                    '不是存档（或遇到了其他问题），继续往后尝试
                 End Try
             End If
             'RAR 处理
@@ -888,6 +969,14 @@ Public Class FormMain
         ''' Java 管理，这是一个副页面。
         ''' </summary>
         SetupJava = 11
+        ''' <summary>
+        ''' 存档详细管理，这是一个副页面。
+        ''' </summary>
+        VersionSaves = 12
+        ''' <summary>
+        ''' 主页市场，这是一个副页面。
+        ''' </summary>
+        HomePageMarket = 13
     End Enum
     ''' <summary>
     ''' 次要页面种类。其数值必须与 StackPanel 中的下标一致。
@@ -915,11 +1004,9 @@ Public Class FormMain
         SetupSystem = 2
         SetupLink = 3
         LinkLobby = 1
-        LinkIoi = 2
         LinkSetup = 4
         LinkHelp = 5
         LinkFeedback = 6
-        LinkNetStatus = 7
         OtherHelp = 0
         OtherAbout = 1
         OtherTest = 2
@@ -935,7 +1022,10 @@ Public Class FormMain
         VersionModDisabled = 6
         VersionResourcePack = 7
         VersionShader = 8
-        VersionInstall = 9
+        VersionSchematic = 9
+        VersionInstall = 10
+        VersionSavesInfo = 0
+        VersionSavesBackup = 1
     End Enum
     ''' <summary>
     ''' 获取次级页面的名称。若并非次级页面则返回空字符串，故可以以此判断是否为次级页面。
@@ -956,6 +1046,10 @@ Public Class FormMain
                 Return CType(Stack.Additional(0), HelpEntry).Title
             Case PageType.SetupJava
                 Return "Java 管理"
+            Case PageType.VersionSaves
+                Return $"存档管理 - {GetFolderNameFromPath(Stack.Additional)}"
+            Case PageType.HomePageMarket
+                Return "主页市场"
             Case Else
                 Return ""
         End Select
@@ -1086,6 +1180,14 @@ Public Class FormMain
                             Exit For
                         End If
                     Next
+                Case PageType.VersionSaves
+                    If FrmVersionSavesLeft Is Nothing Then FrmVersionSavesLeft = New PageVersionSavesLeft
+                    For Each item In FrmVersionSavesLeft.PanItem.Children
+                        If item.GetType() Is GetType(MyListItem) AndAlso Val(item.tag) = SubType Then
+                            CType(item, MyListItem).SetChecked(True, True, Stack = PageCurrent)
+                            Exit For
+                        End If
+                    Next
             End Select
             PageChangeActual(Stack, SubType)
         End If
@@ -1200,6 +1302,13 @@ Public Class FormMain
                     PageChangeAnim(New MyPageLeft, FrmDownloadCompDetail)
                 Case PageType.HelpDetail '帮助详情
                     PageChangeAnim(New MyPageLeft, Stack.Additional(1))
+                Case PageType.VersionSaves '存档管理
+                    If FrmVersionSavesLeft Is Nothing Then FrmVersionSavesLeft = New PageVersionSavesLeft
+                    PageVersionSavesLeft.CurrentSave = Stack.Additional
+                    PageChangeAnim(FrmVersionSavesLeft, FrmVersionSavesLeft.PageGet(SubType))
+                Case PageType.HomePageMarket '主页市场
+                    FrmHomepageMarket = If(FrmHomepageMarket, New PageHomePageMarket)
+                    PageChangeAnim(New MyPageLeft, FrmHomepageMarket)
             End Select
 #End Region
 

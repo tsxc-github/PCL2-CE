@@ -1,4 +1,4 @@
-﻿Public Class PageDownloadCompFavorites
+Public Class PageDownloadCompFavorites
 
 #Region "加载器信息"
     '加载器信息
@@ -42,6 +42,16 @@
             Return CompFavorites.FavoritesList.Where(Function(e) e.Id = SelectedItem.Tag).First()
         End Get
     End Property
+
+    Public Sub New()
+        InitializeComponent()
+        '这是选择收藏夹旁边那个图标按钮
+        '实在不想把布局写动态代码里，但是奈何龙猫的石山没办法在 XAML 里定义 Logo 属性为已有常量值
+        '还有一个很扯淡的点，同样自定义的 MyButton 能在 XAML 直接设置 Click 事件
+        '到 MyIconButton 就不行了，死活跑不了，也不知道是不是漏了什么依赖属性没写
+        Btn_ManageTargetFav.Logo = Logo.IconButtonSetup
+        AddHandler Btn_ManageTargetFav.Click, AddressOf Manage_Click
+    End Sub
 
 #Region "UI 化 - 自适应卡片"
     Class CompListItemContainer ' 用来存储自动依据类型生成的卡片及其相关信息
@@ -215,9 +225,12 @@
         AddHandler Btn_EditNote.Click, Sub(sender As Object, e As EventArgs)
                                            CurrentFavTarget.Notes.TryGetValue(CompId, Notes)
                                            Dim DesiredNote = MyMsgBoxInput("修改备注", DefaultInput:=Notes)
-                                           CurrentFavTarget.Notes(CompId) = DesiredNote
-                                           NoteItem.Text = If(String.IsNullOrWhiteSpace(DesiredNote), "", $" ({DesiredNote})")
-                                           CompFavorites.Save()
+                                           '只有在用户确认时才更新备注，避免取消时清空原有备注
+                                           If DesiredNote IsNot Nothing Then
+                                               CurrentFavTarget.Notes(CompId) = DesiredNote
+                                               NoteItem.Text = If(String.IsNullOrWhiteSpace(DesiredNote), "", $" ({DesiredNote})")
+                                               CompFavorites.Save()
+                                           End If
                                        End Sub
         '删除按钮
         Dim Btn_Delete As New MyIconButton

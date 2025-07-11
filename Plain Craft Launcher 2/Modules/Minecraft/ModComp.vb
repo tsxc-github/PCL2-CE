@@ -1,5 +1,6 @@
 ﻿Imports System.Threading.Tasks
-Imports System.Data.SQLite
+Imports System.Net.Http
+Imports LiteDB
 
 Public Module ModComp
 
@@ -33,6 +34,10 @@ Public Module ModComp
         ''' 服务端插件。
         ''' </summary>
         Plugin = 5
+        ''' <summary>
+        ''' 投影原理图。
+        ''' </summary>
+        Schematic = 6
     End Enum
     Public Enum CompLoaderType
         'https://docs.curseforge.com/?http#tocS_ModLoaderType
@@ -93,54 +98,60 @@ Public Module ModComp
 
 #Region "CompDatabase | Mod 数据库"
 
-    Private _CompDatabase As SqliteConnection = Nothing
-    Private ReadOnly Property CompDatabase As SqliteConnection
+    Private _CompDatabase As LiteDatabase = Nothing
+    Private ReadOnly Property CompDatabase As LiteDatabase
         Get
             If _CompDatabase IsNot Nothing Then Return _CompDatabase
             '初始化数据库
-            Dim DBPath = $"{PathTemp}Cache\ModData.db"
-            WriteFile(DBPath, GetResources("ModData"))
-            Log($"[CompWikiData] 数据库文件已释放到 {DBPath}")
-            _CompDatabase = New SQLiteConnection($"Data Source={DBPath};Mode=ReadOnly")
-            _CompDatabase.Open()
+            Dim dbPath = $"{PathTemp}Cache\ModData.db"
+            Using compressedDbData As New MemoryStream(GetResources("ModData"))
+                Log($"[DB] 解压 ModData 中")
+                If File.Exists(dbPath) Then File.Delete(dbPath)
+                Using trueDbFile As New IO.Compression.GZipStream(compressedDbData, Compression.CompressionMode.Decompress)
+                    Using uncompressedDbFile As New FileStream(dbPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read)
+                        trueDbFile.CopyTo(uncompressedDbFile)
+                    End Using
+                End Using
+                Log($"[DB] 已更新本地 ModData {dbPath}")
+            End Using
+            _CompDatabase = New LiteDatabase(dbPath)
+            Log($"[DB] 已加载 ModData，共 {_CompDatabase.GetCollection("ModTranslation").Count()} 条数据")
             Return _CompDatabase
         End Get
     End Property
 
-    Private Function GetCompWikiEntryBySlug(slug As String)
-        Dim command = CompDatabase.CreateCommand()
-        command.CommandText = "SELECT * FROM ModWiki WHERE curseforge_id = @slug OR modrinth_id = @slug"
-        command.Parameters.AddWithValue("@slug", slug)
-        Dim reader = command.ExecuteReader()
-        If reader.Read() Then
-            Return New CompDatabaseEntry With {
-                .WikiId = reader("wiki_id"),
-                .ChineseName = reader("chinese_name"),
-                .CurseForgeSlug = reader("curseforge_id"),
-                .ModrinthSlug = reader("modrinth_id")
-            }
-        End If
-        reader.Close()
-        Return Nothing
+    Private Class CompWikiStruct
+
+    End Class
+
+    Private Function GetCompWikiEntryBySlug(slug As String) As CompDatabaseEntry
+        Dim datas = CompDatabase.GetCollection(Of CompDatabaseEntry)("ModTranslation")
+        Dim paSlug = New BsonValue(slug)
+        Dim queryCmd = Query.Or(
+                Query.EQ("CurseForgeSlug", paSlug),
+                Query.EQ("ModrinthSlug", paSlug)
+                )
+        Dim ret = datas.Find(queryCmd)
+        Return If(ret.Any(), ret.First(), Nothing)
     End Function
 
     Private Class CompDatabaseEntry
         ''' <summary>
         ''' McMod 的对应 ID。
         ''' </summary>
-        Public WikiId As Integer
+        Public Property WikiId As Integer
         ''' <summary>
         ''' 中文译名。空字符串代表没有翻译。
         ''' </summary>
-        Public ChineseName As String = ""
+        Public Property ChineseName As String = ""
         ''' <summary>
         ''' CurseForge Slug（例如 advanced-solar-panels）。
         ''' </summary>
-        Public CurseForgeSlug As String = Nothing
+        Public Property CurseForgeSlug As String = Nothing
         ''' <summary>
         ''' Modrinth Slug（例如 advanced-solar-panels）。
         ''' </summary>
-        Public ModrinthSlug As String = Nothing
+        Public Property ModrinthSlug As String = Nothing
 
         Public Overrides Function ToString() As String
             Return If(CurseForgeSlug, "") & "&" & If(ModrinthSlug, "") & "|" & WikiId & "|" & ChineseName
@@ -285,12 +296,15 @@ Public Module ModComp
                 If jsonObject.ContainsKey("translated") Then
                     result = jsonObject("translated").ToString()
                     WriteIni(CacheFilePath, DescHash, Base64Encode(result))
-                Else
-                    Hint($"{TranslatedName} 的简介暂无译文！", HintType.Critical)
                 End If
+            Catch ex As HttpRequestException
+                If ex.Message.Contains("404") Then
+                    MyMsgBox("当前资源的简介暂无译文", "获取译文失败", Button1:="我知道了")
+                    Return Nothing
+                End If
+                Log(ex, "获取中文描述时出现错误", LogLevel.Hint)
             Catch ex As Exception
-                Log(ex, "获取中文描述时出现错误！")
-                Hint($"获取译文时出现错误，信息：{ex.Message}", HintType.Critical)
+                Log(ex, "获取中文描述时出现错误", LogLevel.Hint)
             End Try
 
             Return result
@@ -1066,26 +1080,22 @@ NoSubtitle:
         If IsChineseSearch AndAlso (Request.Type = CompType.Mod OrElse Request.Type = CompType.DataPack) Then
             '构造搜索请求
             Dim SearchEntries As New List(Of SearchEntry(Of CompDatabaseEntry))
-            Dim command = CompDatabase.CreateCommand()
-            command.CommandText = "SELECT * FROM ModWiki WHERE chinese_name LIKE @kw OR curseforge_id LIKE @kw OR modrinth_id LIKE @kw"
-            command.Parameters.AddWithValue("@kw", "%" & RawFilter & "%")
-            Dim reader = command.ExecuteReader()
-            While reader.Read()
-                If reader("chinese_name").ToString().Contains("动态的树") Then Continue While
-                Dim entry As New CompDatabaseEntry With {
-                    .WikiId = reader("wiki_id"),
-                    .ChineseName = reader("chinese_name"),
-                    .CurseForgeSlug = reader("curseforge_id"),
-                    .ModrinthSlug = reader("modrinth_id")
-                }
+            Dim datas = CompDatabase.GetCollection(Of CompDatabaseEntry)("ModTranslation")
+            Dim queryCmd = Query.Or(
+                Query.Contains("ChineseName", RawFilter),
+                Query.Contains("CurseForgeSlug", RawFilter),
+                Query.Contains("ModrinthSlug", RawFilter)
+                )
+            Dim searchRes = datas.Find(queryCmd)
+            For Each searchItem In searchRes
+                If searchItem.ChineseName.Contains("动态的树") Then Continue For
                 SearchEntries.Add(New SearchEntry(Of CompDatabaseEntry) With {
-                    .Item = entry,
+                    .Item = searchItem,
                     .SearchSource = New List(Of KeyValuePair(Of String, Double)) From {
-                        New KeyValuePair(Of String, Double)(entry.ChineseName & If(entry.CurseForgeSlug, "") & If(entry.ModrinthSlug, ""), 1)
+                        New KeyValuePair(Of String, Double)(searchItem.ChineseName & If(searchItem.CurseForgeSlug, "") & If(searchItem.ModrinthSlug, ""), 1)
                     }
                 })
-            End While
-            reader.Close()
+            Next
             '获取搜索结果
             Dim SearchResults = Search(SearchEntries, Request.SearchText, 3)
             If Not SearchResults.Any() Then Throw New Exception("无搜索结果，请尝试搜索英文名称")
@@ -1582,10 +1592,13 @@ Retry:
         ''' </summary>
         Public Shared Function HandleCurseForgeDownloadUrls(Url As String) As List(Of String)
             Return {
-                Url.Replace("-service.overwolf.wtf", ".forgecdn.net").Replace("://edge", "://media"),
-                Url.Replace("-service.overwolf.wtf", ".forgecdn.net"),
-                Url.Replace("://edge", "://media"),
-                Url
+                Url.Replace("://media.", "://edge."),
+                Url.Replace("://media.", "://mediafilez."),
+                Url.Replace("://edge.", "://mediafilez."),
+                Url,
+                Url.Replace("-service.overwolf.wtf", ".forgecdn.net").Replace("://media.", "://edge."),
+                Url.Replace("-service.overwolf.wtf", ".forgecdn.net").Replace("://media.", "://edge.").Replace("://edge.", "://mediafilez."),
+                Url.Replace("-service.overwolf.wtf", ".forgecdn.net")
             }.Distinct.ToList
         End Function
 
@@ -2036,77 +2049,74 @@ Retry:
         '剪贴板已读取内容
         Public Shared CurrentText As String = Nothing
         '识别剪贴板内容
-        Public Shared Sub ClipboardListening()
-            While Setup.Get("ToolDownloadClipboard")
-                Thread.Sleep(700)
-                Dim Text As String = Nothing
-                Dim Slug As String = Nothing
-                Dim ProjectId As String = Nothing
-                Dim CategoryURL As String = Nothing
-                Dim ReturnData = Nothing
-                RunInUiWait(Sub()
-                                Text = My.Computer.Clipboard.GetText()
-                            End Sub)
-                If Text = CurrentText Then Continue While
-                CurrentText = Text
-                Text = Text.Replace("https://", "").Replace("http://", "")
+        Public Shared Sub GetClipboardResource()
+            Dim Text As String = Nothing
+            Dim Slug As String = Nothing
+            Dim ProjectId As String = Nothing
+            Dim CategoryURL As String = Nothing
+            Dim ReturnData = Nothing
+            RunInUiWait(Sub()
+                            Text = My.Computer.Clipboard.GetText()
+                        End Sub)
+            If Text = CurrentText Then Exit Sub
+            CurrentText = Text
+            Text = Text.Replace("https://", "").Replace("http://", "")
 
-                If Text.Contains("curseforge.com/minecraft/") Then 'e.g. www.curseforge.com/minecraft/mc-mods/jei
-                    Dim ClassIds As List(Of String) = New List(Of String) From {"6", "4471", "12", "6552"}
-                    Try
-                        CategoryURL = Text.Split("/")(2)
-                        Slug = Text.Split("/")(3)
-                        ReturnData = DlModRequest("https://api.curseforge.com/v1/mods/search?gameId=432&slug=" + Slug, IsJson:=True) '获取资源信息
-                        Dim ReceivedClassId As String = ReturnData("data")(0)("categories")(0)("classId") '获取资源的 ClassId
+            If Text.Contains("curseforge.com/minecraft/") Then 'e.g. www.curseforge.com/minecraft/mc-mods/jei
+                Dim ClassIds As List(Of String) = New List(Of String) From {"6", "4471", "12", "6552"}
+                Try
+                    CategoryURL = Text.Split("/")(2)
+                    Slug = Text.Split("/")(3)
+                    ReturnData = DlModRequest("https://api.curseforge.com/v1/mods/search?gameId=432&slug=" + Slug, IsJson:=True) '获取资源信息
+                    Dim ReceivedClassId As String = ReturnData("data")(0)("categories")(0)("classId") '获取资源的 ClassId
 
-                        '判断资源的分类是否匹配，不在支持的资源类型中的就直接显示
-                        Dim IsCategoryMatched As Boolean = True
-                        Dim ResClassId As String = Nothing
-                        If CategoryURL = "mc-mods" AndAlso Not ReceivedClassId = "6" Then
-                            IsCategoryMatched = False
-                            ResClassId = "6"
-                        ElseIf CategoryURL = "modpacks" AndAlso Not ReceivedClassId = "4471" Then
-                            IsCategoryMatched = False
-                            ResClassId = "4471"
-                        ElseIf CategoryURL = "texture-packs" AndAlso Not ReceivedClassId = "12" Then
-                            IsCategoryMatched = False
-                            ResClassId = "12"
-                        ElseIf CategoryURL = "shaders" AndAlso Not ReceivedClassId = "6552" Then
-                            IsCategoryMatched = False
-                            ResClassId = "6552"
-                        End If
+                    '判断资源的分类是否匹配，不在支持的资源类型中的就直接显示
+                    Dim IsCategoryMatched As Boolean = True
+                    Dim ResClassId As String = Nothing
+                    If CategoryURL = "mc-mods" AndAlso Not ReceivedClassId = "6" Then
+                        IsCategoryMatched = False
+                        ResClassId = "6"
+                    ElseIf CategoryURL = "modpacks" AndAlso Not ReceivedClassId = "4471" Then
+                        IsCategoryMatched = False
+                        ResClassId = "4471"
+                    ElseIf CategoryURL = "texture-packs" AndAlso Not ReceivedClassId = "12" Then
+                        IsCategoryMatched = False
+                        ResClassId = "12"
+                    ElseIf CategoryURL = "shaders" AndAlso Not ReceivedClassId = "6552" Then
+                        IsCategoryMatched = False
+                        ResClassId = "6552"
+                    End If
 
-                        If Not IsCategoryMatched Then
-                            ReturnData = DlModRequest("https://api.curseforge.com/v1/mods/search?gameId=432&slug=" + Slug + "&classId=" + ResClassId, IsJson:=True)
-                        End If
+                    If Not IsCategoryMatched Then
+                        ReturnData = DlModRequest("https://api.curseforge.com/v1/mods/search?gameId=432&slug=" + Slug + "&classId=" + ResClassId, IsJson:=True)
+                    End If
 
-                        ProjectId = ReturnData("data")(0)("id")
-                    Catch ex As Exception
-                        Log("[Clipboard] 获取剪贴板 CurseForge 资源链接 ID 失败: " + ex.ToString(), LogLevel.Normal)
-                        Continue While
-                    End Try
-                ElseIf Text.Contains("modrinth.com/") Then 'e.g. modrinth.com/mod/fabric-api
-                    Try
-                        Slug = Text.Split("/")(2)
-                        ProjectId = DlModRequest("https://api.modrinth.com/v2/project/" + Slug, IsJson:=True)("id")
-                    Catch ex As Exception
-                        Log("[Clipboard] 获取剪贴板 Modrinth 资源链接 ID 失败: " + ex.ToString(), LogLevel.Normal)
-                        Continue While
-                    End Try
-                Else
-                    Continue While
-                End If
+                    ProjectId = ReturnData("data")(0)("id")
+                Catch ex As Exception
+                    Log("[Clipboard] 获取剪贴板 CurseForge 资源链接 ID 失败: " + ex.ToString(), LogLevel.Normal)
+                    Exit Sub
+                End Try
+            ElseIf Text.Contains("modrinth.com/") Then 'e.g. modrinth.com/mod/fabric-api
+                Try
+                    Slug = Text.Split("/")(2)
+                    ProjectId = DlModRequest("https://api.modrinth.com/v2/project/" + Slug, IsJson:=True)("id")
+                Catch ex As Exception
+                    Log("[Clipboard] 获取剪贴板 Modrinth 资源链接 ID 失败: " + ex.ToString(), LogLevel.Normal)
+                    Exit Sub
+                End Try
+            Else
+                Exit Sub
+            End If
 
-                Log("[Clipboard] 剪贴板资源 ProjectId: " + ProjectId)
+            Log("[Clipboard] 剪贴板资源 ProjectId: " + ProjectId)
 
-                If MyMsgBox("PCL 在剪贴板中识别到了资源链接，是否要跳转到该资源的详细信息页面？", "识别到剪贴板资源", "确定", "取消", ForceWait:=True) = 1 Then
-                    Hint("正在获取资源信息，请稍等...")
-                    Dim Ids As New List(Of String)({ProjectId})
-                    Dim CompProjects = CompRequest.GetCompProjectsByIds(Ids)
-                    RunInUi(Sub() FrmMain.PageChange(New FormMain.PageStackData With {.Page = FormMain.PageType.CompDetail,
+            If MyMsgBox("PCL 在剪贴板中识别到了资源链接，是否要跳转到该资源的详细信息页面？", "识别到剪贴板资源", "确定", "取消", ForceWait:=True) = 1 Then
+                Hint("正在获取资源信息，请稍等...")
+                Dim Ids As New List(Of String)({ProjectId})
+                Dim CompProjects = CompRequest.GetCompProjectsByIds(Ids)
+                RunInUi(Sub() FrmMain.PageChange(New FormMain.PageStackData With {.Page = FormMain.PageType.CompDetail,
                                .Additional = {CompProjects.First(), New List(Of String), String.Empty, CompLoaderType.Any, CompType.Any}}))
-                End If
-            End While
+            End If
         End Sub
     End Class
 #End Region

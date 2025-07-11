@@ -229,6 +229,20 @@ NextInner:
         '检查路径
         If McVersionCurrent.PathIndie.Contains("!") OrElse McVersionCurrent.PathIndie.Contains(";") Then Throw New Exception("游戏路径中不可包含 ! 或 ;（" & McVersionCurrent.PathIndie & "）")
         If McVersionCurrent.Path.Contains("!") OrElse McVersionCurrent.Path.Contains(";") Then Throw New Exception("游戏路径中不可包含 ! 或 ;（" & McVersionCurrent.Path & "）")
+        If IsUtf8CodePage() AndAlso Not Setup.Get("HintDisableGamePathCheckTip") AndAlso Not McVersionCurrent.Path.IsASCII() Then
+            Dim userChoice = MyMsgBox(
+                $"欲启动版本 ""{McVersionCurrent.Name}"" 的路径中存在可能影响游戏正常运行的字符（非 ASCII 字符），是否仍旧启动游戏？{vbCrLf}{vbCrLf}如果不清楚具体作用，你可以先选择 ""继续""，发现游戏在启动后很快出现崩溃的情况后再尝试修改游戏路径等操作",
+                "游戏路径检查",
+                "继续",
+                "返回处理",
+                "不再提示")
+            If userChoice = 2 Then
+                Throw New Exception("$$")
+            End If
+            If userChoice = 3 Then
+                Setup.Set("HintDisableGamePathCheckTip", True)
+            End If
+        End If
         '检查版本
         If McVersionCurrent Is Nothing Then Throw New Exception("未选择 Minecraft 版本！")
         McVersionCurrent.Load()
@@ -721,7 +735,7 @@ Exception:
         }"
         Dim Result As String = Nothing
         Try
-            Result = NetRequestMultiple("https://user.auth.xboxlive.com/user/authenticate", "POST", Request, "application/json", 3)
+            Result = NetRequestRetry("https://user.auth.xboxlive.com/user/authenticate", "POST", Request, "application/json", 3)
         Catch ex As Exception
             Dim IsIgnore As Boolean = False
             RunInUiWait(Sub()
@@ -757,7 +771,7 @@ Exception:
                                  }"
         Dim Result As String
         Try
-            Result = NetRequestMultiple("https://xsts.auth.xboxlive.com/xsts/authorize", "POST", Request, "application/json", 3)
+            Result = NetRequestRetry("https://xsts.auth.xboxlive.com/xsts/authorize", "POST", Request, "application/json", 3)
         Catch ex As WebException
             '参考 https://github.com/PrismarineJS/prismarine-auth/blob/master/src/common/Constants.js
             If ex.Message.Contains("2148916227") Then
@@ -847,13 +861,15 @@ Exception:
     Private Sub MsLoginStep5(AccessToken As String)
         ProfileLog("开始正版验证 Step 5/6: 验证账户是否持有 MC")
 
-        Dim Result As String = NetRequestMultiple("https://api.minecraftservices.com/entitlements/mcstore", "GET", "", "application/json", 2, New Dictionary(Of String, String) From {{"Authorization", "Bearer " & AccessToken}})
+        Dim Result As String = NetRequestRetry("https://api.minecraftservices.com/entitlements/mcstore", "GET", "", "application/json", 2, New Dictionary(Of String, String) From {{"Authorization", "Bearer " & AccessToken}})
         Try
             Dim ResultJson As JObject = GetJson(Result)
             If Not (ResultJson.ContainsKey("items") AndAlso ResultJson("items").Any) Then
-                Select Case MyMsgBox("你尚未购买正版 Minecraft，或者 Xbox Game Pass 已到期。", "登录失败", "购买 Minecraft", "取消")
+                Select Case MyMsgBox($"暂时无法获取到你的账户信息，可能存在以下原因{vbCrLf}{vbCrLf}- 你尚未购买正版 Minecraft 或者 Xbox Game Pass 已过期{vbCrLf}- 未在官网创建 Minecraft 用户档案", "登录失败", "购买 Minecraft", "去官网创建 Minecraft 档案", "取消")
                     Case 1
                         OpenWebsite("https://www.xbox.com/zh-cn/games/store/minecraft-java-bedrock-edition-for-pc/9nxp44l49shj")
+                    Case 2
+                        OpenWebsite("https://www.minecraft.net/zh-hans/msaprofile/mygames")
                 End Select
                 Throw New Exception("$$")
             End If
@@ -872,7 +888,7 @@ Exception:
 
         Dim Result As String
         Try
-            Result = NetRequestMultiple("https://api.minecraftservices.com/minecraft/profile", "GET", "", "application/json", 2, New Dictionary(Of String, String) From {{"Authorization", "Bearer " & AccessToken}})
+            Result = NetRequestRetry("https://api.minecraftservices.com/minecraft/profile", "GET", "", "application/json", 2, New Dictionary(Of String, String) From {{"Authorization", "Bearer " & AccessToken}})
         Catch ex As Net.WebException
             Dim Message As String = GetExceptionSummary(ex)
             If Message.Contains("(429)") Then
@@ -926,7 +942,7 @@ Exception:
                 ProfileLog("验证登录失败：" & AllMessage)
                 If (AllMessage.Contains("超时") OrElse AllMessage.Contains("imeout")) AndAlso Not AllMessage.Contains("403") Then
                     ProfileLog("已触发超时登录失败")
-                    Throw New Exception("$登录失败：连接登录服务器超时。" & vbCrLf & "请检查你的网络状况是否良好，或尝试使用 VPN！")
+                    Throw New Exception("$登录失败：连接登录服务器超时。" & vbCrLf & "请检查你的网络状况是否良好，或尝试使用 VPN！" & vbCrLf & vbCrLf & "详细信息：" & ex.ToString())
                 End If
             End Try
             Data.Progress = 0.25
@@ -948,7 +964,7 @@ Refresh:
             NeedRefresh = McLoginRequestLogin(Data)
         Catch ex As Exception
             ProfileLog("验证失败：" & GetExceptionDetail(ex))
-            Throw
+            Throw New Exception("$第三方验证登录失败，请检查你的网络状况是否良好。" & vbCrLf & vbCrLf & "详细信息：" & ex.ToString())
         End Try
         If NeedRefresh Then
             ProfileLog("重新进行刷新登录")
@@ -975,13 +991,14 @@ LoginFinish:
         End If
         '发送登录请求
         Dim RequestData As New JObject(
-            New JProperty("accessToken", AccessToken), New JProperty("clientToken", ClientToken), New JProperty("requestUser", True))
+            New JProperty("accessToken", AccessToken), New JProperty("clientToken", ClientToken))
         NetRequestRetry(
             Url:=Data.Input.BaseUrl & "/validate",
             Method:="POST",
             Data:=RequestData.ToString(0),
             Headers:=New Dictionary(Of String, String) From {{"Accept-Language", "zh-CN"}},
             ContentType:="application/json") '没有返回值的
+        Log(RequestData.ToString(0))
         '将登录结果输出
         Data.Output.AccessToken = AccessToken
         Data.Output.ClientToken = ClientToken
@@ -1134,7 +1151,7 @@ LoginFinish:
                         '密码错误，退出登录 (#5090)
                         ProfileLog("第三方验证档案密码错误")
                     End If
-                    Throw New Exception("$登录失败：" & ErrorMessage)
+                    Throw New Exception("$登录失败：" & ErrorMessage & vbCrLf & "详细信息：" & ex.ToString())
                 End If
             End If
             '通用关键字检测
@@ -1142,9 +1159,9 @@ LoginFinish:
                 Throw New Exception("$登录失败，以下为可能的原因：" & vbCrLf &
                                             " - 输入的账号或密码错误。" & vbCrLf &
                                             " - 登录尝试过于频繁，导致被暂时屏蔽。请不要操作，等待 10 分钟后再试。" & vbCrLf &
-                                            " - 只注册了账号，但没有在皮肤站新建角色。")
+                                            " - 只注册了账号，但没有在皮肤站新建角色。" & vbCrLf & "详细信息：" & ex.ToString())
             ElseIf AllMessage.Contains("超时") OrElse AllMessage.Contains("imeout") OrElse AllMessage.Contains("网络请求失败") Then
-                Throw New Exception("$登录失败：连接登录服务器超时。" & vbCrLf & "请检查你的网络状况是否良好，或尝试使用 VPN！")
+                Throw New Exception("$登录失败：连接登录服务器超时。" & vbCrLf & "请检查你的网络状况是否良好，或尝试使用 VPN！" & vbCrLf & vbCrLf & "详细信息：" & ex.ToString())
             ElseIf ex.Message.StartsWithF("$") Then
                 Throw
             Else
@@ -1268,6 +1285,12 @@ LoginFinish:
             MaxVer = New Version(999, 999, 999, 999)
         End If
 
+        'JSON 中要求的版本
+        If McVersionCurrent.JsonObject("javaVersion") IsNot Nothing Then
+            MinVer = If(New Version(McVersionCurrent.JsonObject("javaVersion")("majorVersion"), 0, 0, 0) > MinVer, New Version(McVersionCurrent.JsonObject("javaVersion")("majorVersion"), 0, 0, 0), MinVer)
+            If MaxVer < MinVer Then MaxVer = New Version(999, 999, 999, 999)
+        End If
+
         SyncLock JavaLock
 
             '选择 Java
@@ -1343,50 +1366,24 @@ LoginFinish:
 #Region "启动参数"
 
     Public Class LaunchArgument
-        Private _features As New Dictionary(Of String, String)
+        Private _features As New List(Of String)
         Public Sub New(Minecraft As McVersion)
             Dim curArgu As String = String.Empty
             If Minecraft.IsOldJson Then
-                '分隔开参数
-                Dim param = Minecraft.JsonObject("minecraftArguments").ToString.Split(" "c).ToList()
-                For Each p In param
-                    If p.StartsWithF("--") Then
-                        curArgu = p
-                        Continue For
-                    End If
-                    If p.StartsWithF("$") Then
-                        _features.Add(curArgu, p)
-                    End If
-                Next
+                _features = Minecraft.JsonObject("minecraftArguments").ToString.Split(" "c).ToList()
             Else
                 For Each item In Minecraft.JsonObject("arguments")("game")
                     If item.Type = JTokenType.String Then
-                        If item.ToString().StartsWithF("$") Then
-                            curArgu = item.ToString()
-                            Continue For
-                        End If
-                        If item.ToString().StartsWithF("--") Then
-                            _features.Add(curArgu, item.ToString())
-                        End If
+                        _features.Add(item.ToString)
                     ElseIf item.Type = JTokenType.Object Then
-                        For Each values In item("value")
-                            If values.ToString().StartsWithF("--") Then
-                                curArgu = values.ToString()
-                                _features.Add(curArgu, String.Empty)
-                            End If
-                            If values.ToString().StartsWithF("$") AndAlso
-                                _features.ContainsKey(curArgu) AndAlso
-                                String.IsNullOrEmpty(_features(curArgu)) Then
-                                _features(curArgu) = values.ToString()
-                            End If
-                        Next
+                        _features.AddRange(item("value").Select(Function(x) x.ToString))
                     End If
                 Next
             End If
         End Sub
 
         Public Function HasArguments(key As String)
-            Return _features.ContainsKey(key)
+            Return _features.Contains(key)
         End Function
     End Class
 
@@ -1455,8 +1452,11 @@ LoginFinish:
     ''' <summary>
     ''' 判断是否使用 RetroWrapper。
     ''' </summary>
-    Private Function McLaunchNeedsRetroWrapper() As Boolean
-        Return (McVersionCurrent.ReleaseTime >= New Date(2013, 6, 25) AndAlso McVersionCurrent.Version.McCodeMain = 99) OrElse (McVersionCurrent.Version.McCodeMain < 6 AndAlso McVersionCurrent.Version.McCodeMain <> 99) AndAlso Not Setup.Get("LaunchAdvanceDisableRW") AndAlso Not Setup.Get("VersionAdvanceDisableRW", McVersionCurrent) '<1.6
+    Private Function McLaunchNeedsRetroWrapper(Mc As McVersion) As Boolean
+        Return (Mc.ReleaseTime >= New Date(2013, 6, 25) AndAlso Mc.Version.McCodeMain = 99) OrElse
+            (Mc.Version.McCodeMain < 6 AndAlso Mc.Version.McCodeMain <> 99) AndAlso
+            Not Setup.Get("LaunchAdvanceDisableRW") AndAlso
+            Not Setup.Get("VersionAdvanceDisableRW", Mc) '<1.6
     End Function
 
 
@@ -1581,7 +1581,7 @@ LoginFinish:
             DataList.Add($"-D{If(ProxyAddress.Scheme.ToString.StartsWithF("https:"), "https", "http")}.proxyPort={ProxyAddress.Port}")
         End If
         '添加 Java Wrapper 作为主 Jar
-        If Not Setup.Get("LaunchAdvanceDisableJLW") AndAlso Not Setup.Get("VersionAdvanceDisableJLW", McVersionCurrent) Then
+        If IsUtf8CodePage() AndAlso Not Setup.Get("LaunchAdvanceDisableJLW") AndAlso Not Setup.Get("VersionAdvanceDisableJLW", McVersionCurrent) Then
             If McLaunchJavaSelected.JavaMajorVersion >= 9 Then DataList.Add("--add-exports cpw.mods.bootstraplauncher/cpw.mods.bootstraplauncher=ALL-UNNAMED")
             DataList.Add("-Doolloo.jlw.tmpdir=""" & PathPure.TrimEnd("\") & """")
             DataList.Add("-jar """ & ExtractJavaWrapper() & """")
@@ -1634,7 +1634,7 @@ NextVersion:
         If McLoginLoader.Output.Type = "Auth" Then
             Dim Server As String = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
             Try
-            Dim Response As String = NetGetCodeByRequestRetry(Server, Encoding.UTF8)
+                Dim Response As String = NetGetCodeByRequestRetry(Server, Encoding.UTF8)
                 DataList.Insert(0, "-javaagent:""" & PathPure & "authlib-injector.jar""=" & Server &
                               " -Dauthlibinjector.side=client" &
                               " -Dauthlibinjector.yggdrasil.prefetched=" & Convert.ToBase64String(Encoding.UTF8.GetBytes(Response)))
@@ -1649,18 +1649,18 @@ NextVersion:
             DataList.Add($"-D{If(ProxyAddress.Scheme.ToString.StartsWithF("https:"), "https", "http")}.proxyHost={ProxyAddress.AbsoluteUri}")
             DataList.Add($"-D{If(ProxyAddress.Scheme.ToString.StartsWithF("https:"), "https", "http")}.proxyPort={ProxyAddress.Port}")
         End If
+        '添加 RetroWrapper 相关参数
+        If McLaunchNeedsRetroWrapper(Version) Then
+            'https://github.com/NeRdTheNed/RetroWrapper/wiki/RetroWrapper-flags
+            DataList.Add("-Dretrowrapper.doUpdateCheck=false")
+        End If
         '添加 Java Wrapper 作为主 Jar
-        If Not Setup.Get("LaunchAdvanceDisableJLW") AndAlso Not Setup.Get("VersionAdvanceDisableJLW", McVersionCurrent) Then
+        If IsUtf8CodePage() AndAlso Not Setup.Get("LaunchAdvanceDisableJLW") AndAlso Not Setup.Get("VersionAdvanceDisableJLW", McVersionCurrent) Then
             If McLaunchJavaSelected.JavaMajorVersion >= 9 Then DataList.Add("--add-exports cpw.mods.bootstraplauncher/cpw.mods.bootstraplauncher=ALL-UNNAMED")
             DataList.Add("-Doolloo.jlw.tmpdir=""" & PathPure.TrimEnd("\") & """")
             DataList.Add("-jar """ & ExtractJavaWrapper() & """")
         End If
 
-        '添加 RetroWrapper 相关参数
-        If McLaunchNeedsRetroWrapper() Then
-            'https://github.com/NeRdTheNed/RetroWrapper/wiki/RetroWrapper-flags
-            DataList.Add("-Dretrowrapper.doUpdateCheck=false")
-        End If
 
         '将 "-XXX" 与后面 "XXX" 合并到一起
         '如果不合并，会导致 Forge 1.17 启动无效，它有两个 --add-exports，进一步导致其中一个在后面被去重
@@ -1701,7 +1701,7 @@ NextVersion:
         Dim DataList As New List(Of String)
 
         '添加 RetroWrapper 相关参数
-        If McLaunchNeedsRetroWrapper() Then
+        If McLaunchNeedsRetroWrapper(Version) Then
             DataList.Add("--tweakClass com.zero.retrowrapper.RetroTweaker")
         End If
 
@@ -1861,11 +1861,11 @@ NextVersion:
         Dim OptiFineCp As String = Nothing
 
         'RetroWrapper 释放
-        If McLaunchNeedsRetroWrapper() Then
+        If McLaunchNeedsRetroWrapper(Version) Then
             Dim WrapperPath As String = PathMcFolder & "libraries\retrowrapper\RetroWrapper.jar"
             Try
                 WriteFile(WrapperPath, GetResources("RetroWrapper"))
-                CpStrings.Add(WrapperPath)  
+                CpStrings.Add(WrapperPath)
             Catch ex As Exception
                 Log(ex, "RetroWrapper 释放失败")
             End Try
@@ -1873,8 +1873,8 @@ NextVersion:
 
         For Each Library As McLibToken In LibList
             If Library.IsNatives Then Continue For
-            If Library.Name IsNot Nothing AndAlso Library.Name.Contains("com.cleanroommc:cleanroom") Then 'Cleanroom 的主 Jar 必须放在 ClassPath 第一位
-                CpStrings.Insert(0, Library.LocalPath + ";")
+            If Library.Name IsNot Nothing AndAlso Library.Name.Contains("com.cleanroommc:cleanroom:0.2") Then 'Cleanroom 的主 Jar 必须放在 ClassPath 第一位
+                CpStrings.Insert(0, Library.LocalPath)
             End If
             If Library.Name IsNot Nothing AndAlso Library.Name = "optifine:OptiFine" Then
                 OptiFineCp = Library.LocalPath
@@ -2106,11 +2106,6 @@ NextVersion:
             Log(ex, "更新 options.txt 失败", LogLevel.Hint)
         End Try
 
-        'LabyMod 预处理
-        If ReadIni(McVersionCurrent.Path & "PCL\Setup.ini", "VersionLabyMod", "") <> "" AndAlso McVersionCurrent.PathIndie = McVersionCurrent.Path Then
-            If Directory.Exists(McVersionCurrent.Path & "labymod-neo") Then Directory.Delete(McVersionCurrent.Path & "labymod-neo")
-            CreateSymbolicLink(McVersionCurrent.Path & "labymod-neo", PathMcFolder & "labymod-neo", &H2)
-        End If
     End Sub
     Private Sub McLaunchCustom(Loader As LoaderTask(Of Integer, Integer))
 
@@ -2356,11 +2351,7 @@ NextVersion:
         End If
         Select Case McLoginLoader.Input.Type
             Case McLoginType.Legacy
-                If PageLinkLobby.HiperState = LoadState.Finished Then
-                    Raw = Raw.Replace("{login}", "联机离线")
-                Else
-                    Raw = Raw.Replace("{login}", "离线")
-                End If
+                Raw = Raw.Replace("{login}", "离线")
             Case McLoginType.Ms
                 Raw = Raw.Replace("{login}", "正版")
             Case McLoginType.Auth

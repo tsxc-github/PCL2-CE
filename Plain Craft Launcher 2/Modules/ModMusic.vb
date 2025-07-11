@@ -299,7 +299,7 @@ Public Module ModMusic
                 Log("[Music] 已恢复播放")
                 Try
                     MusicNAudio?.Play()
-                Catch 'https://github.com/Hex-Dragon/PCL2/pull/5415#issuecomment-2751135223
+                Catch 'https://github.com/Meloong-Git/PCL/pull/5415#issuecomment-2751135223
                     MusicNAudio?.Stop()
                     MusicNAudio?.Play()
                 End Try
@@ -493,7 +493,7 @@ Public Module ModMusic
                            End While
                            If Not CurrentWave.Equals(MusicNAudio) Then Exit Sub
                            SMTCTimelineUpdater(CurrentWave, Reader)
-                       End Sub)
+                       End Sub, "SMTC Updater")
     End Sub
 #End Region
 

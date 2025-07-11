@@ -1,15 +1,19 @@
 name: Build Test
 
 on:
-  # push:
-  #   paths:
-  #     - 'Plain Craft Launcher 2/**'
-  #     - '.github/workflows/**'
+  push:
+    branches: [dev]
+    paths:
+      - 'Plain Craft Launcher 2/**'
+      - 'Plain Craft Launcher 2.sln'
+      - '.github/workflows/**'
+      - 'PCL.Core/**'
   pull_request:
     paths:
       - 'Plain Craft Launcher 2/**'
       - 'Plain Craft Launcher 2.sln'
       - '.github/workflows/**'
+      - 'PCL.Core/**'
   workflow_dispatch:
 
 jobs:

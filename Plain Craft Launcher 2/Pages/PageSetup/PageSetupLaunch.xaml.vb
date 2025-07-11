@@ -40,6 +40,8 @@
             TextArgumentWindowHeight.Text = Setup.Get("LaunchArgumentWindowHeight")
             CheckArgumentRam.Checked = Setup.Get("LaunchArgumentRam")
             ComboMsAuthType.SelectedIndex = Setup.Get("LoginMsAuthType")
+            ComboPreferredIpStack.SelectedIndex = Setup.Get("LaunchPreferredIpStack")
+            'CheckArgumentJavaTraversal.Checked = Setup.Get("LaunchArgumentJavaTraversal")
 
             '游戏内存
             CType(FindName("RadioRamType" & Setup.Load("LaunchRamType")), MyRadioBox).Checked = True
@@ -79,6 +81,7 @@
             Setup.Reset("LaunchArgumentWindowWidth")
             Setup.Reset("LaunchArgumentWindowHeight")
             Setup.Reset("LaunchArgumentPriority")
+            Setup.Reset("LaunchPreferredIpStack")
             Setup.Reset("LaunchArgumentRam")
             Setup.Reset("LaunchRamType")
             Setup.Reset("LaunchRamCustom")
@@ -111,45 +114,12 @@
     Private Shared Sub SliderChange(sender As MySlider, e As Object) Handles SliderRamCustom.Change
         If AniControlEnabled = 0 Then Setup.Set(sender.Tag, sender.Value)
     End Sub
-    Private Shared Sub ComboChange(sender As MyComboBox, e As Object) Handles ComboArgumentIndieV2.SelectionChanged, ComboArgumentVisibie.SelectionChanged, ComboArgumentWindowType.SelectionChanged, ComboArgumentPriority.SelectionChanged, ComboMsAuthType.SelectionChanged
+    Private Shared Sub ComboChange(sender As MyComboBox, e As Object) Handles ComboArgumentIndieV2.SelectionChanged, ComboArgumentVisibie.SelectionChanged, ComboArgumentWindowType.SelectionChanged, ComboArgumentPriority.SelectionChanged, ComboMsAuthType.SelectionChanged, ComboPreferredIpStack.SelectionChanged
         If AniControlEnabled = 0 Then Setup.Set(sender.Tag, sender.SelectedIndex)
     End Sub
     Private Shared Sub CheckBoxChange(sender As MyCheckBox, e As Object) Handles CheckAdvanceRunWait.Change, CheckArgumentRam.Change, CheckAdvanceDisableJLW.Change, CheckAdvanceGraphicCard.Change, CheckAdvanceDisableRW.Change
         If AniControlEnabled = 0 Then Setup.Set(sender.Tag, sender.Checked)
     End Sub
-
-#Region "下载正版皮肤"
-    Private Sub BtnSkinSave_Click(sender As Object, e As EventArgs) Handles BtnSkinSave.Click
-        Dim ID As String = TextSkinID.Text
-        Hint("正在获取皮肤...")
-        RunInNewThread(Sub()
-                           Try
-                               If ID.Count < 3 Then
-                                   Hint("这不是一个有效的 ID...")
-                               Else
-                                   Dim Result As String = McLoginMojangUuid(ID, True)
-                                   Result = McSkinGetAddress(Result, "Mojang")
-                                   Result = McSkinDownload(Result)
-                                   RunInUi(Sub()
-                                               Dim Path As String = SelectSaveFile("保存皮肤", ID & ".png", "皮肤图片文件(*.png)|*.png")
-                                               CopyFile(Result, Path)
-                                               Hint($"玩家 {ID} 的皮肤已保存！", HintType.Finish)
-                                           End Sub)
-                               End If
-                           Catch ex As Exception
-                               If GetExceptionSummary(ex).Contains("429") Then
-                                   Hint("获取皮肤太过频繁，请 5 分钟之后再试！", HintType.Critical)
-                                   Log("获取正版皮肤失败（" & ID & "）：获取皮肤太过频繁，请 5 分钟后再试！")
-                               Else
-                                   Log(ex, "获取正版皮肤失败（" & ID & "）")
-                               End If
-                           End Try
-                       End Sub)
-    End Sub
-    Private Sub BtnSkinCache_Click(sender As Object, e As EventArgs) Handles BtnSkinCache.Click
-        MySkin.RefreshCache(Nothing)
-    End Sub
-#End Region
 
 #Region "游戏内存"
 
@@ -186,6 +156,7 @@
         LabRamUsed.Text = If(RamUsed = Math.Floor(RamUsed), RamUsed & ".0", RamUsed) & " GB"
         LabRamTotal.Text = " / " & If(RamTotal = Math.Floor(RamTotal), RamTotal & ".0", RamTotal) & " GB"
         LabRamWarn.Visibility = If(RamGame = 1 AndAlso Not IsGameSet64BitJava() AndAlso Not Is32BitSystem AndAlso Javas.JavaList.Any, Visibility.Visible, Visibility.Collapsed)
+        HintRamTooHigh.Visibility = If(RamGame / RamTotal > 0.75, Visibility.Visible, Visibility.Collapsed)
         If ShowAnim Then
             '宽度动画
             AniStart({

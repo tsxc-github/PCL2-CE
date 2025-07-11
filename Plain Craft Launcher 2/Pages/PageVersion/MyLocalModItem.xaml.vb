@@ -1,4 +1,4 @@
-﻿Imports System.Windows.Forms
+Imports System.Windows.Forms
 
 Public Class MyLocalCompItem
 
@@ -67,12 +67,20 @@ Public Class MyLocalCompItem
             PanTags.Children.Clear()
             PanTags.Visibility = If(value.Any(), Visibility.Visible, Visibility.Collapsed)
             For Each TagText In value
-                Dim NewTag = GetObjectFromXML(
-                "<Border xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation""
-                         Background=""#0C000000"" Padding=""3,1"" CornerRadius=""3"" Margin=""0,0,3,0"" 
-                         SnapsToDevicePixels=""True"" UseLayoutRounding=""False"">
-                   <TextBlock Text=""" & TagText & """ Foreground=""" & If(IsDarkMode, "#88FFFFFF", "#88000000") & """ FontSize=""11"" />
-                </Border>")
+                Dim NewTag As New Border With {
+                    .Background = New SolidColorBrush(Color.FromArgb(12, 0, 0, 0)),
+                    .Padding = New Thickness(3, 1, 3, 1),
+                    .CornerRadius = New CornerRadius(3),
+                    .Margin = New Thickness(0, 0, 3, 0),
+                    .SnapsToDevicePixels = True,
+                    .UseLayoutRounding = False
+                }
+                Dim TagTextBlock As New TextBlock With {
+                    .Text = TagText,
+                    .Foreground = New SolidColorBrush(If(IsDarkMode, Color.FromArgb(88, 255, 255, 255), Color.FromArgb(88, 136, 136, 136))),
+                    .FontSize = 11
+                }
+                NewTag.Child = TagTextBlock
                 PanTags.Children.Add(NewTag)
             Next
         End Set
@@ -262,7 +270,7 @@ Public Class MyLocalCompItem
                 SetRowSpan(Rect, 999)
                 Children.Insert(0, Rect)
                 _RectBack = Rect
-                '<!--<Border x:Name = "RectBack" CornerRadius="3" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True" 
+                '<!--<corelocal:BlurBorder x:Name = "RectBack" CornerRadius="3" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True" 
                 'IsHitTestVisible = "False" Opacity="0" BorderThickness="1" 
                 'Grid.ColumnSpan = "4" Background="{DynamicResource ColorBrush7}" BorderBrush="{DynamicResource ColorBrush6}"/>-->
             End If
@@ -351,16 +359,25 @@ Public Class MyLocalCompItem
             End If
             '标题与描述
             Dim DescFileName As String
-            Select Case Entry.State
-                Case LocalCompFile.LocalFileStatus.Fine
-                    DescFileName = GetFileNameWithoutExtentionFromPath(Entry.Path)
-                Case LocalCompFile.LocalFileStatus.Disabled
-                    DescFileName = GetFileNameWithoutExtentionFromPath(Entry.Path.Replace(".disabled", "").Replace(".old", ""))
-                Case Else 'McMod.McModState.Unavailable
-                    DescFileName = GetFileNameFromPath(Entry.Path)
-            End Select
+            If Entry.IsFolder Then
+                '文件夹项的特殊处理
+                DescFileName = Entry.Name
+            Else
+                Select Case Entry.State
+                    Case LocalCompFile.LocalFileStatus.Fine
+                        DescFileName = GetFileNameWithoutExtentionFromPath(Entry.Path)
+                    Case LocalCompFile.LocalFileStatus.Disabled
+                        DescFileName = GetFileNameWithoutExtentionFromPath(Entry.Path.Replace(".disabled", "").Replace(".old", ""))
+                    Case Else 'McMod.McModState.Unavailable
+                        DescFileName = GetFileNameFromPath(Entry.Path)
+                End Select
+            End If
             Dim NewDescription As String
-            If Setup.Get("ToolModLocalNameStyle") = 1 Then
+            If Entry.IsFolder Then
+                '文件夹项的特殊显示
+                Title = Entry.Name
+                NewDescription = Entry.Description
+            ElseIf Setup.Get("ToolModLocalNameStyle") = 1 Then
                 '标题显示文件名，详情显示译名
                 '标题
                 Title = DescFileName
@@ -402,7 +419,8 @@ Public Class MyLocalCompItem
                 LabTitle.SetResourceReference(TextBlock.ForegroundProperty, If(Entry.State = LocalCompFile.LocalFileStatus.Fine, "ColorBrush1", "ColorBrushGray4"))
             End If
             '主 Logo
-            Logo = If(Entry.Comp Is Nothing, PathImage & "Icons/NoIcon.png", Entry.Comp.GetControlLogo())
+             Logo = Entry.GetLogo
+
             '图标右下角的 Logo
             If Entry.State = LocalCompFile.LocalFileStatus.Fine Then
                 If ImgState IsNot Nothing Then
@@ -426,7 +444,12 @@ Public Class MyLocalCompItem
                 ImgState.Source = New MyBitmap(PathImage & $"Icons/{Entry.State}.png")
             End If
             '标签
-            If Entry.Comp IsNot Nothing Then Tags = Entry.Comp.Tags
+            If Entry.IsFolder Then
+                ' 为文件夹添加标签
+                Tags = New List(Of String) From {"文件夹"}
+            ElseIf Entry.Comp IsNot Nothing Then
+                Tags = Entry.Comp.Tags
+            End If
         End Sub)
     End Sub
 

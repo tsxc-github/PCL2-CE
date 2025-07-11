@@ -1,5 +1,4 @@
 Imports System.IO.Compression
-Imports System.Net.Http
 Imports PCL.Core.Model
 
 Public Module ModDownloadLib
@@ -188,7 +187,7 @@ Public Module ModDownloadLib
         Select Case Entry("type")
             Case "release"
                 Logo = PathImage & "Blocks/Grass.png"
-            Case "snapshot"
+            Case "snapshot", "pending"
                 Logo = PathImage & "Blocks/CommandBlock.png"
             Case "special"
                 Logo = PathImage & "Blocks/GoldBlock.png"
@@ -395,19 +394,19 @@ pause"
                 WikiName = "Java版1.14.3_-_Combat_Test"
             Case "combat test 2", "combat-2", "combat-0"
                 WikiName = "Java版Combat_Test_2"
-            Case "combat test 3", "1.14_combat-3"
+            Case "combat test 3", "1_14_combat-3"
                 WikiName = "Java版Combat_Test_3"
-            Case "combat test 4", "1.15_combat-1"
+            Case "combat test 4", "1_15_combat-1"
                 WikiName = "Java版Combat_Test_4"
-            Case "combat test 5", "1.15_combat-6"
+            Case "combat test 5", "1_15_combat-6"
                 WikiName = "Java版Combat_Test_5"
-            Case "combat test 6", "1.16_combat-0"
+            Case "combat test 6", "1_16_combat-0"
                 WikiName = "Java版Combat_Test_6"
-            Case "combat test 7c", "1.16_combat-3"
+            Case "combat test 7c", "1_16_combat-3"
                 WikiName = "Java版Combat_Test_7c"
-            Case "combat test 8b", "1.16_combat-5"
+            Case "combat test 8b", "1_16_combat-5"
                 WikiName = "Java版Combat_Test_8b"
-            Case "combat test 8c", "1.16_combat-6"
+            Case "combat test 8c", "1_16_combat-6"
                 WikiName = "Java版Combat_Test_8c"
             Case "1.0.0-rc1"
                 WikiName = "Java版RC1"
@@ -742,7 +741,7 @@ pause"
                               BaseMcFolder & "versions\" & DownloadInfo.Inherit & "\" & DownloadInfo.Inherit & ".jar")
                     Task.Progress = 0.06
                     '进行安装
-                    Dim UseJavaWrapper As Boolean = True
+                    Dim UseJavaWrapper As Boolean = IsUtf8CodePage()
 Retry:
                     Try
                         McDownloadOptiFineInstall(BaseMcFolderHome, Target, Task, UseJavaWrapper)
@@ -2495,6 +2494,10 @@ Retry:
         ''' </summary>
         Public LiteLoaderEntry As DlLiteLoaderListEntry = Nothing
 
+        ''' <summary>
+        ''' 若 MMC 整合包安装包含特殊参数，则填写此项。
+        ''' </summary>
+        Public MMCPackInfo As MMCPackInfo = Nothing
     End Class
 
     ''' <summary>
@@ -2716,18 +2719,22 @@ LabyModSkip:
         LoaderList.Add(New LoaderTask(Of String, String)("安装游戏",
         Sub(Task As LoaderTask(Of String, String))
             '合并 JSON
-            MergeJson(VersionFolder, VersionFolder, OptiFineFolder, OptiFineAsMod, ForgeFolder, Request.ForgeVersion, NeoForgeFolder, Request.NeoForgeVersion, CleanroomFolder, Request.CleanroomVersion, FabricFolder, QuiltFolder, LabyModFolder, Request.LabyModChannel, LiteLoaderFolder)
+            MergeJson(VersionFolder, VersionFolder, OptiFineFolder, OptiFineAsMod, ForgeFolder, Request.ForgeVersion, NeoForgeFolder, Request.NeoForgeVersion, CleanroomFolder, Request.CleanroomVersion, FabricFolder, QuiltFolder, LabyModFolder, Request.LabyModChannel, LiteLoaderFolder, Request.MMCPackInfo)
             Task.Progress = 0.2
             '迁移文件
             If Directory.Exists(TempMcFolder & "libraries") Then CopyDirectory(TempMcFolder & "libraries", PathMcFolder & "libraries")
             Task.Progress = 0.8
+            '创建 Mod 和资源包文件夹
             Dim ModsFolder = New McVersion(VersionFolder).PathIndie & "mods\" '版本隔离信息在此时被决定
             If Directory.Exists(ModsTempFolder) Then
                 CopyDirectory(ModsTempFolder, ModsFolder)
             ElseIf Modable Then
                 Directory.CreateDirectory(ModsFolder)
-                Log("[Download] 自动创建 mods 文件夹：" & ModsFolder)
+                Log("[Download] 自动创建 Mod 文件夹：" & ModsFolder)
             End If
+            Dim ResourcepacksFolder = New McVersion(VersionFolder).PathIndie & "resourcepacks\"
+            Directory.CreateDirectory(ResourcepacksFolder)
+            Log("[Download] 自动创建资源包文件夹：" & ResourcepacksFolder)
         End Sub) With {.ProgressWeight = 2, .Block = True})
         '补全文件
         If Not DontFixLibraries AndAlso
@@ -2751,7 +2758,7 @@ LabyModSkip:
     ''' <summary>
     ''' 将多个版本 JSON 进行合并，如果目标已存在则直接覆盖。失败会抛出异常。
     ''' </summary>
-    Private Sub MergeJson(OutputFolder As String, MinecraftFolder As String, Optional OptiFineFolder As String = Nothing, Optional OptiFineAsMod As Boolean = False, Optional ForgeFolder As String = Nothing, Optional ForgeVersion As String = Nothing, Optional NeoForgeFolder As String = Nothing, Optional NeoForgeVersion As String = Nothing, Optional CleanroomFolder As String = Nothing, Optional CleanroomVersion As String = Nothing, Optional FabricFolder As String = Nothing, Optional QuiltFolder As String = Nothing, Optional LabyModFolder As String = Nothing, Optional LabyModChannel As String = Nothing, Optional LiteLoaderFolder As String = Nothing)
+    Private Sub MergeJson(OutputFolder As String, MinecraftFolder As String, Optional OptiFineFolder As String = Nothing, Optional OptiFineAsMod As Boolean = False, Optional ForgeFolder As String = Nothing, Optional ForgeVersion As String = Nothing, Optional NeoForgeFolder As String = Nothing, Optional NeoForgeVersion As String = Nothing, Optional CleanroomFolder As String = Nothing, Optional CleanroomVersion As String = Nothing, Optional FabricFolder As String = Nothing, Optional QuiltFolder As String = Nothing, Optional LabyModFolder As String = Nothing, Optional LabyModChannel As String = Nothing, Optional LiteLoaderFolder As String = Nothing, Optional MMCPackInfo As MMCPackInfo = Nothing)
         Log("[Download] 开始进行版本合并，输出：" & OutputFolder & "，Minecraft：" & MinecraftFolder &
             If(OptiFineFolder IsNot Nothing, "，OptiFine：" & OptiFineFolder, "") &
             If(ForgeFolder IsNot Nothing, "，Forge：" & ForgeFolder, "") &
@@ -2909,7 +2916,19 @@ LabyModSkip:
         Dim RealArguments As String = Join(SplitArguments.Distinct.ToList, " ")
         '合并
         '相关讨论见 #2801
-        OutputJson = MinecraftJson
+        If MMCPackInfo IsNot Nothing Then
+            If MMCPackInfo.IsMinecraftOverrided Then
+                Log("[Download] 当前版本的 MC 核心已被修改，使用对应的 MMC 整合包参数")
+                OutputJson = MMCPackInfo.OverridedJson
+            Else
+                Log("[Download] 存在无修改 MC 核心文件的 MMC 整合包信息，应用相关参数")
+                OutputJson = MinecraftJson
+                '合并来自 MultiMC 的 JSON
+                OutputJson.Merge(MMCPackInfo.OverridedJson)
+            End If
+        Else
+            OutputJson = MinecraftJson
+        End If
         If HasOptiFine Then
             '合并 OptiFine
             OptiFineJson.Remove("releaseTime")
@@ -2917,22 +2936,28 @@ LabyModSkip:
             OutputJson.Merge(OptiFineJson)
         End If
         If HasForge Then
-            '合并 Forge
-            ForgeJson.Remove("releaseTime")
-            ForgeJson.Remove("time")
-            OutputJson.Merge(ForgeJson)
+            If MMCPackInfo Is Nothing OrElse Not MMCPackInfo.IsForgeOverrided Then
+                '合并 Forge
+                ForgeJson.Remove("releaseTime")
+                ForgeJson.Remove("time")
+                OutputJson.Merge(ForgeJson)
+            End If
         End If
         If HasNeoForge Then
-            '合并 NeoForge
-            NeoForgeJson.Remove("releaseTime")
-            NeoForgeJson.Remove("time")
-            OutputJson.Merge(NeoForgeJson)
+            If MMCPackInfo Is Nothing OrElse Not MMCPackInfo.IsNeoForgeOverrided Then
+                '合并 NeoForge
+                NeoForgeJson.Remove("releaseTime")
+                NeoForgeJson.Remove("time")
+                OutputJson.Merge(NeoForgeJson)
+            End If
         End If
         If HasCleanroom Then
-            '合并 Cleanroom
-            CleanroomJson.Remove("releaseTime")
-            CleanroomJson.Remove("time")
-            OutputJson.Merge(CleanroomJson)
+            If MMCPackInfo Is Nothing OrElse Not MMCPackInfo.IsCleanroomOverrided Then
+                '合并 Cleanroom
+                CleanroomJson.Remove("releaseTime")
+                CleanroomJson.Remove("time")
+                OutputJson.Merge(CleanroomJson)
+            End If
         End If
         If HasLiteLoader Then
             '合并 LiteLoader
@@ -2941,16 +2966,20 @@ LabyModSkip:
             OutputJson.Merge(LiteLoaderJson)
         End If
         If HasFabric Then
-            '合并 Fabric
-            FabricJson.Remove("releaseTime")
-            FabricJson.Remove("time")
-            OutputJson.Merge(FabricJson)
+            If MMCPackInfo Is Nothing OrElse Not MMCPackInfo.IsFabricOverrided Then
+                '合并 Fabric
+                FabricJson.Remove("releaseTime")
+                FabricJson.Remove("time")
+                OutputJson.Merge(FabricJson)
+            End If
         End If
         If HasQuilt Then
-            '合并 Quilt
-            QuiltJson.Remove("releaseTime")
-            QuiltJson.Remove("time")
-            OutputJson.Merge(QuiltJson)
+            If MMCPackInfo Is Nothing OrElse Not MMCPackInfo.IsQuiltOverrided Then
+                '合并 Quilt
+                QuiltJson.Remove("releaseTime")
+                QuiltJson.Remove("time")
+                OutputJson.Merge(QuiltJson)
+            End If
         End If
         If HasLabyMod Then
             '合并 LabyMod
@@ -3011,6 +3040,7 @@ LabyModSkip:
         End If
         '修改
         If RealArguments IsNot Nothing AndAlso RealArguments.Replace(" ", "") <> "" Then OutputJson("minecraftArguments") = RealArguments
+        If MMCPackInfo IsNot Nothing AndAlso MMCPackInfo.IsMcArgsEdited Then OutputJson.Remove("minecraftArguments")
         OutputJson.Remove("_comment_")
         OutputJson.Remove("inheritsFrom")
         OutputJson.Remove("jar")
