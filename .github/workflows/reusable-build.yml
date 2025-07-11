@@ -50,6 +50,9 @@ jobs:
       - name: Restore NuGet Packages
         run: msbuild "Plain Craft Launcher 2.sln" /t:Restore
 
+      - name: Restore NuGet Packages
+        run: msbuild ".\PCL.Core\PCL.Core.csproj" /t:Restore
+
       - name: Replace Secrets and Commit Hash
         run: |
           (gc "Plain Craft Launcher 2\Modules\ModSecret.vb") -replace 'Public Const OAuthClientId As String = ""', 'Public Const OAuthClientId As String = "${{ secrets.CLIENT_ID }}"' | Out-File "Plain Craft Launcher 2\Modules\ModSecret.vb"
