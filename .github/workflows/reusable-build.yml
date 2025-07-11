@@ -48,7 +48,7 @@ jobs:
           Set-Location ${{ GITHUB.WORKSPACE }}
 
       - name: Restore NuGet Packages
-        run: msbuild "Plain Craft Launcher 2.sln" /t:Restore
+        run: nuget restore "Plain Craft Launcher 2.sln" -PackagesDirectory "packages"
 
       - name: Restore NuGet Packages
         run: msbuild ".\PCL.Core\PCL.Core.csproj" /t:Restore
