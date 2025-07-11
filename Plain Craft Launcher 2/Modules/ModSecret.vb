@@ -175,6 +175,8 @@ Friend Module ModSecret
 
 #Region "网络鉴权"
 
+
+
     Friend Function SecretCdnSign(UrlWithMark As String)
         If Not UrlWithMark.EndsWithF("{CDN}") Then Return UrlWithMark
         Return UrlWithMark.Replace("{CDN}", "").Replace(" ", "%20")
@@ -182,16 +184,18 @@ Friend Module ModSecret
     ''' <summary>
     ''' 设置 Headers 的 UA、Referer。
     ''' </summary>
-    Friend Sub SecretHeadersSign(Url As String, ByRef Client As HttpRequestMessage, Optional UseBrowserUserAgent As Boolean = False)
+    Friend Sub SecretHeadersSign(Url As String, ByRef Client As HttpRequestMessage, Optional UseBrowserUserAgent As Boolean = False, Optional CustomUserAgent As String = "")
         If Url.Contains("api.curseforge.com") Then Client.Headers.Add("x-api-key", CurseForgeAPIKey)
-        Client.Headers.Add("User-Agent",
-        If(Url.Contains("baidupcs.com") OrElse Url.Contains("baidu.com"),
-                "LogStatistic",
-                If(UseBrowserUserAgent,
-                    $"PCL2/{UpstreamVersion}.{VersionBranchCode} PCLCE/{VersionStandardCode} Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0",
-                    $"PCL2/{UpstreamVersion}.{VersionBranchCode} PCLCE/{VersionStandardCode}"
-                )
-            ))
+        Dim userAgent As String = If(Not String.IsNullOrEmpty(CustomUserAgent),
+                                     CustomUserAgent,
+                                     If(Url.Contains("baidupcs.com") OrElse Url.Contains("baidu.com"),
+                                         "LogStatistic",
+                                         If(UseBrowserUserAgent,
+                                             $"PCL2/{UpstreamVersion}.{VersionBranchCode} PCLCE/{VersionStandardCode} Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0",
+                                             $"PCL2/{UpstreamVersion}.{VersionBranchCode} PCLCE/{VersionStandardCode}"
+                                         )
+                                     ))
+        Client.Headers.Add("User-Agent", userAgent)
 
         Client.Headers.Add("Referer", "http://" & VersionCode & ".ce.open.pcl2.server/")
         If Url.Contains("pcl2ce.pysio.online/post") AndAlso Not String.IsNullOrEmpty(TelemetryKey) Then Client.Headers.Add("Authorization", TelemetryKey)
@@ -745,13 +749,11 @@ Friend Module ModSecret
 
     Public IsCheckingUpdates As Boolean = False
     Public IsUpdateWaitingRestart As Boolean = False
-    Public RemoteServer As New List(Of IUpdateSource) From {
-        New UpdatesMinioModel("https://edgeone.update.pcl.mzmcos.tsxc.xyz/", "edgeone"),
-        New UpdatesMinioModel("https://cloudflare.update.pcl.mzmcos.tsxc.xyz/", "CloudFlare"),
-        New UpdatesMinioModel("https://github.com/tsxc-github/PCL2_CE_Server/raw/main/", "GitHub")
-    }
-    Public LatestVersion As VersionDataModel = Nothing
-    Public LatestAnnouncement As AnnouncementInfoModel = Nothing
+    Public RemoteServer As New UpdatesWrapperModel({
+         New UpdatesMinioModel("https://edgeone.update.pcl.mzmcos.tsxc.xyz/", "edgeone"),
+         New UpdatesMinioModel("https://cloudflare.update.pcl.mzmcos.tsxc.xyz/", "CloudFlare"),
+         New UpdatesMinioModel("https://github.com/tsxc-github/PCL2_CE_Server/raw/main/", "GitHub")
+    })
     Public ReadOnly Property IsUpdBetaChannel
         Get
             Return Setup.Get("SystemSystemUpdateBranch") = 1
@@ -863,7 +865,7 @@ Friend Module ModSecret
                 Exit Sub
             End If
             ' id old new restart
-            Dim text As String = String.Concat(New String() {"--update ", Process.GetCurrentProcess().Id, " """, PathWithName, """ """, fileName, """ ", TriggerRestartAndByEnd})
+            Dim text As String = String.Concat(New String() {"update ", Process.GetCurrentProcess().Id, " """, PathWithName, """ """, fileName, """ true"})
             Log("[System] 更新程序启动，参数：" + text, LogLevel.Normal, "出现错误")
             Process.Start(New ProcessStartInfo(fileName) With {.WindowStyle = ProcessWindowStyle.Hidden, .CreateNoWindow = True, .Arguments = text})
             If TriggerRestartAndByEnd Then
