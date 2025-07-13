@@ -1,4 +1,4 @@
-﻿Imports PCL.Core.Utils
+Imports PCL.Core.Utils
 
 Public Interface IUpdateSource
     ''' <summary>
@@ -10,10 +10,8 @@ Public Interface IUpdateSource
     ''' 确保最新版本
     ''' </summary>
     ''' <returns>True 表示更新成功，False 表示没有数据更新</returns>
-    Function RefreshCache() As Boolean
+    Function EnsureLatestData() As Boolean
     Function GetLatestVersion(channel As UpdateChannel, arch As UpdateArch) As VersionDataModel
-    Function IsLatest(channel As UpdateChannel, arch As UpdateArch, currentVersion As SemVer, currentVersionCode As Integer) As Boolean
-    Function GetAnnouncementList() As VersionAnnouncementDataModel
-    Function GetDownloadLoader(channel As UpdateChannel, arch As UpdateArch, output As String) As List(Of LoaderBase)
+    Function GetAnnouncementList() As AnnouncementInfoModel
     Property SourceName As String
 End Interface
