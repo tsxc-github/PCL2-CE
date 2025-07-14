@@ -309,6 +309,9 @@
     <Compile Include="Modules\Updates\UpdatesMinioModel.vb" />
     <Compile Include="Modules\Updates\UpdatesMirrorChyanModel.vb" />
     <Compile Include="Modules\Updates\VersionDataModel.vb" />
+    <Compile Include="Pages\PageLaunch\MZMCLogin.xaml.vb">
+      <DependentUpon>MZMCLogin.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\PageLaunch\PageLoginOffline.xaml.vb">
       <DependentUpon>PageLoginOffline.xaml</DependentUpon>
     </Compile>
@@ -718,6 +721,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Pages\PageLaunch\MZMCLogin.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Pages\PageLaunch\PageLoginOffline.xaml" />
     <Page Include="Pages\PageLaunch\PageLoginProfileSkin.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -735,6 +742,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <None Include="app.config" />
     <None Include="app.manifest" />
     <None Include="Resources\Custom.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -1250,9 +1258,6 @@
       <Project>{a0c2209d-64fb-4c11-9459-8e86304b6f94}</Project>
       <Name>PCL.Core</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Pages\MZMC\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

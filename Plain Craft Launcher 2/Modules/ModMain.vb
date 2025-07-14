@@ -232,6 +232,7 @@ EndHint:
         Input
         Login
         Markdown
+        MZMCLogin
     End Enum
 
     ''' <summary>
@@ -425,6 +426,8 @@ EndHint:
                         FrmMain.PanMsg.Children.Add(New MyMsgLogin(WaitingMyMsgBox(0)))
                     Case MyMsgBoxType.Markdown
                         FrmMain.PanMsg.Children.Add(New MyMsgMarkdown(WaitingMyMsgBox(0)))
+                    Case MyMsgBoxType.MZMCLogin
+                        FrmMain.PanMsg.Children.Add(New MZMCLogin(WaitingMyMsgBox(0)))
                 End Select
                 WaitingMyMsgBox.RemoveAt(0)
             Else
