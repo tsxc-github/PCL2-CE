@@ -2,7 +2,7 @@ name: Build (CI)
 
 on:
   push:
-    branches: [dev]
+    branches: [mzmc-dev]
     paths:
       - 'Plain Craft Launcher 2/**'
       - 'Plain Craft Launcher 2.sln'
