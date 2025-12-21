@@ -83,6 +83,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
   Update_update_file:
-    uses: tsxc-github/PCL2-CE/.github/workflows/release-update.yml@mzmc_dev
+    uses: tsxc-github/PCL2-CE/.github/workflows/release-update.yml@mzmc-dev
     needs: rename_and_release
     secrets: inherit
