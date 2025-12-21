@@ -1,4 +1,5 @@
 Imports System.ComponentModel
+Imports System.IO.Compression
 Imports System.Management
 Imports System.Net.Http
 Imports System.Runtime.InteropServices
@@ -772,7 +773,7 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
     End Sub
 
     Public Sub UpdateStart(Version As VersionDataModel, Slient As Boolean, Optional ReceivedKey As String = Nothing, Optional ForceValidated As Boolean = False)
-        Dim DlTargetPath As String = Path + "PCL\Plain Craft Launcher Community Edition.exe"
+        Dim DlTargetPath As String = Exepath + "PCL\Plain Craft Launcher Community Edition.exe"
         Dim DlTempPath As String = $"{PathTemp}Cache\CEUpdates.zip"
         RunInNewThread(Sub()
                            Try
@@ -911,8 +912,8 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
             Log("[System] 最新版 PCL 已存在，跳过下载")
             Exit Sub
         End If
-        If GetFileSHA256(PathWithName) = target.sha256 Then '正在使用的版本符合要求，直接拿来用
-            CopyFile(PathWithName, LatestPCLPath)
+        If GetFileSHA256(ExePathWithName) = target.sha256 Then '正在使用的版本符合要求，直接拿来用
+            CopyFile(ExePathWithName, LatestPCLPath)
             Exit Sub
         End If
         NetDownloadByLoader(target.download_url, LatestPCLTempPath, LoaderToSyncProgress)

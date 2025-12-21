@@ -20,7 +20,7 @@ Public Class UpdatesRandomModel '社区自己的更新系统格式
     Public Function EnsureLatestData() As Boolean Implements IUpdateSource.EnsureLatestData
         Dim AvailableList = GetAvailableSources()
         If AvailableList.Count() = 0 Then Throw New Exception("无法获取到任何可用的更新源。请检查配置或网络连接。")
-        _curRandomSource = If(_curRandomSource, AvailableList.ElementAt(RandomInteger(0, AvailableList.Count() - 1)))
+        _curRandomSource = If(_curRandomSource, AvailableList.ElementAt(RandomUtils.NextInt(0, AvailableList.Count() - 1)))
         Return _curRandomSource.EnsureLatestData()
     End Function
 
