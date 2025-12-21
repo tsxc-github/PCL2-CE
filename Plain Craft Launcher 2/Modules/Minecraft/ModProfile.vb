@@ -233,7 +233,8 @@ Public Module ModProfile
         Dim selectedAuthTypeNum As Integer? = Nothing '验证类型序号
         RunInUiWait(Sub()
                         Dim authTypeList As List(Of IMyRadio)
-                        If ProfileList.Any(Function(x) x.Type = McLoginType.Ms) Then
+'                        If ProfileList.Any(Function(x) x.Type = McLoginType.Ms) Then
+                        If True Then
                             authTypeList = New List(Of IMyRadio) From
                             {
                                 New MyListItem With {

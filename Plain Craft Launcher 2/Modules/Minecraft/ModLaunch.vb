@@ -293,7 +293,8 @@ NextInner:
         End If
 #End If
         '正版购买提示
-        If Not ProfileList.Any(Function(x) x.Type = McLoginType.Ms) Then
+'        If Not ProfileList.Any(Function(x) x.Type = McLoginType.Ms) Then
+        If False Then
             Select Case MyMsgBox("你必须先登录正版账号才能启动游戏！", "正版验证", "购买正版", "试玩", "返回",
                     Button1Action:=Sub() OpenWebsite("https://www.xbox.com/zh-cn/games/store/minecraft-java-bedrock-edition-for-pc/9nxp44l49shj"))
                 Case 2
@@ -316,6 +317,7 @@ NextInner:
         Legacy = 1
         Auth = 2
         Ms = 3
+        MZMC = 4
     End Enum
 
     '各个登录方式的对应数据
@@ -457,6 +459,8 @@ NextInner:
                 Loader = McLoginLegacyLoader
             Case McLoginType.Auth
                 Loader = McLoginAuthLoader
+'                Case McLoginType.MZMC 'TODO:写完mzmc登录
+'                    Loader= Mc
         End Select
         '尝试加载
         Loader.WaitForExit(Data.Input, McLoginLoader, Data.IsForceRestarting)
@@ -471,6 +475,7 @@ NextInner:
     Public McLoginMsLoader As New LoaderTask(Of McLoginMs, McLoginResult)("Loader Login Ms", AddressOf McLoginMsStart) With {.ReloadTimeout = 1}
     Public McLoginLegacyLoader As New LoaderTask(Of McLoginLegacy, McLoginResult)("Loader Login Legacy", AddressOf McLoginLegacyStart)
     Public McLoginAuthLoader As New LoaderTask(Of McLoginServer, McLoginResult)("Loader Login Auth", AddressOf McLoginServerStart) With {.ReloadTimeout = 1000 * 60 * 10}
+    Public McLoginMZMCLoader As New LoaderTask(Of McLoginServer, McLoginResult)("Loader Login MZMC", AddressOf McLoginServerStart) With {.ReloadTimeout = 1000 * 60 * 10}
 
     '主加载函数，返回所有需要的登录信息
     Private McLoginMsRefreshTime As Long = 0 '上次刷新登录的时间
