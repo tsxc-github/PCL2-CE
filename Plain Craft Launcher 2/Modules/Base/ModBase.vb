@@ -19,12 +19,12 @@ Public Module ModBase
 #Region "声明"
 
     '下列版本信息由能工智人自助修改
-    Public Const VersionBaseName As String = "0.1.0-beta.1" '不含分支前缀的显示用版本名
-    Public Const VersionStandardCode As String = "0.1.0." & VersionBranchCode
+    Public Const VersionBaseName As String = "0.2.0-beta.1" '不含分支前缀的显示用版本名
+    Public Const VersionStandardCode As String = "0..0." & VersionBranchCode
     Public Const UpstreamVersion As String = "2.13.4-beta.5" '上游版本
     Public ReadOnly CommitHash As String = If(EnvironmentInterop.GetSecret("GITHUB_SHA", False), "native") 'Commit Hash
     Public ReadOnly CommitHashShort As String = If(CommitHash = "native", "native", CommitHash.Substring(0, 7)) 'Commit Hash，取前 7 位
-    Public Const VersionCode As Integer = 10 '内部版本号
+    Public Const VersionCode As Integer = 100 '内部版本号
     '版本信息
 #If DEBUG Then
     Public Const VersionBranchName As String = "Debug"
