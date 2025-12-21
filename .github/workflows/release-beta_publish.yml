@@ -36,7 +36,7 @@ jobs:
         uses: taiki-e/install-action@git-cliff
 
       - name: Generate changelog
-        run: git-cliff --latest
+        run: git-cliff --latest > CHANGELOG.md
 
       - name: Add changelog to release
         uses: softprops/action-gh-release@v2.2.2
@@ -74,13 +74,6 @@ jobs:
             PCL2_CE_${{ matrix.configuration }}_${{ matrix.architecture }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Trigger MirrorChyanUploading
-        run: |
-          gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_uploading.yml -f channel=beta -f arch=${{ matrix.architecture == 'x64' && 'x64' || 'arm64' }}
-          gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release_note.yml
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
   Update_update_file:
     uses: tsxc-github/PCL2-CE/.github/workflows/release-update.yml@mzmc-dev
