@@ -81,3 +81,8 @@ jobs:
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release_note.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+  Update_update_file:
+    uses: tsxc-github/PCL2-CE/.github/workflows/release-update.yml@mzmc_dev
+    needs: rename_and_release
+    secrets: inherit
