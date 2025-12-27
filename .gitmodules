@@ -1,5 +1,5 @@
 [submodule "PCL.Core"]
 	path = PCL.Core
-	url = https://github.com/PCL-Community/PCL.Core.git
-	branch = main
+	url = https://github.com/tsxc-github/PCL.Core.git
+	branch = LiPolymer
 	ignore = all
