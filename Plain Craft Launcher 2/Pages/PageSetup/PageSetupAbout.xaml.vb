@@ -65,6 +65,10 @@ Public Class PageSetupAbout
         AniStart({
                  AaRotateTransform(sender, 360)})
     End Sub
+    Private Sub ImgMZMCDev_Click(sender As Object, e As MouseButtonEventArgs) Handles ImgMZMCDev.MouseLeftButtonDown
+        AniStart({
+                     AaRotateTransform(sender, 360)})
+    End Sub
 
     '彩蛋
     Private ClickCount As Integer = 0

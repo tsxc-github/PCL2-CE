@@ -69,16 +69,12 @@ Friend Module ModSecret
     ''' </summary>
     ''' <param name="IsUpdate">是否为更新时启动</param>
     Public Sub ShowCEAnnounce()
-        MyMsgBox($"你正在使用来自 PCL-Community 的 PCL 社区版本，遇到问题请不要向官方仓库反馈！
-PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的使用做担保。
-
-如果你是意外下载的社区版，建议下载官方版 PCL 使用。
-如果你是意外下载的社区版，建议下载官方版 PCL 使用。
-如果你是意外下载的社区版，建议下载官方版 PCL 使用。
+        MyMsgBox($"你正在使用来自 绵中方块人服务器管理组（技术部） 的 PCL-CE 特供版本，遇到问题请不要向官方仓库反馈！
+绵中方块人服务器管理组（技术部）及其成员与 PCL-Community、龙腾猫跃 无从属关系，且均不会为您的使用做担保。
 
 该版本与官方版本的特性区别：
-- 主题切换：仅部分固定蓝色系主题，没有计划新增其它主题。
-- 百宝箱：缺失部分官方版中的内容（回声洞、千万别点）。
+- 包含 MZMC 相关内容
+- 包含 PCL-CE 的拓展功能
 
 此提示会在启动器更新后展示一次。", "社区版本说明", "我知道了")
     End Sub
@@ -643,7 +639,7 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
                                End If
                                loaders.Add(New LoaderTask(Of Integer, Integer)("刷新设置 UI", Sub()
                                    If FrmSetupUpdate IsNot Nothing Then
-                                       RunInUi(Sub() 
+                                       RunInUi(Sub()
                                            FrmSetupUpdate.BtnUpdate.Text = "重启安装"
                                            FrmSetupUpdate.BtnUpdate.IsEnabled = True
                                        End Sub)
