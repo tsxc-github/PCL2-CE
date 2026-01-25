@@ -28,7 +28,7 @@
     ''' <summary>
     ''' 勾选事件改变页面。
     ''' </summary>
-    Private Sub PageCheck(sender As MyListItem, e As RouteEventArgs) Handles ItemGameLink.Check, ItemLauncherHelp.Check, ItemTest.Check
+    Private Sub PageCheck(sender As MyListItem, e As RouteEventArgs) Handles ItemGameLink.Check, ItemLauncherHelp.Check, ItemTest.Check, ItemMZMCSettings.Check
         '尚未初始化控件属性时，sender.Tag 为 Nothing，会导致切换到页面 0
         '若使用 IsLoaded，则会导致模拟点击不被执行（模拟点击切换页面时，控件的 IsLoaded 为 False）
         If sender.Tag IsNot Nothing Then PageChange(Val(sender.Tag))
@@ -49,6 +49,9 @@
             Case FormMain.PageSubType.ToolsLauncherHelp
                 If FrmToolsHelp Is Nothing Then FrmToolsHelp = New PageToolsHelp
                 Return FrmToolsHelp
+            Case FormMain.PageSubType.ToolsMZMCSettings
+                If FrmMZMCSettings Is Nothing Then FrmMZMCSettings = New PageMZMCSettings
+                Return FrmMZMCSettings
             Case Else
                 Throw New Exception("未知的更多子页面种类：" & ID)
         End Select

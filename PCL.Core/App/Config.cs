@@ -199,12 +199,12 @@ public static partial class Config
         /// <summary>
         /// 标题内容类型。
         /// </summary>
-        [ConfigItem<LauncherTitleType>("UiLogoType", LauncherTitleType.Default, ConfigSource.Local)] public partial LauncherTitleType WindowTitleType { get; set; }
+        [ConfigItem<LauncherTitleType>("UiLogoType", LauncherTitleType.Text, ConfigSource.Local)] public partial LauncherTitleType WindowTitleType { get; set; }
 
         /// <summary>
         /// 窗口标题文本。
         /// </summary>
-        [ConfigItem<string>("UiLogoText", "", ConfigSource.Local)] public partial string LogoCustomText { get; set; }
+        [ConfigItem<string>("UiLogoText", "PCL MZMC Edition", ConfigSource.Local)] public partial string LogoCustomText { get; set; }
 
         /// <summary>
         /// 导航栏居左。
@@ -347,7 +347,7 @@ public static partial class Config
             /// <summary>
             /// 主页来源类型。
             /// </summary>
-            [ConfigItem<int>("UiCustomType", 0, ConfigSource.Local)] public partial int Type { get; set; }
+            [ConfigItem<int>("UiCustomType", 2, ConfigSource.Local)] public partial int Type { get; set; }
 
             /// <summary>
             /// 预设选项。
@@ -357,7 +357,7 @@ public static partial class Config
             /// <summary>
             /// 自定义 URL。
             /// </summary>
-            [ConfigItem<string>("UiCustomNet", "", ConfigSource.Local)] public partial string CustomUrl { get; set; }
+            [ConfigItem<string>("UiCustomNet", "https://news.pcl.mzmcos.tsxc.xyz/output.xaml", ConfigSource.Local)] public partial string CustomUrl { get; set; }
         }
 
         /// <summary>

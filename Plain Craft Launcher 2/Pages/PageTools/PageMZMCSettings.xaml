@@ -1,0 +1,34 @@
+<local:MyPageRight
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:PCL" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    mc:Ignorable="d" x:Class="PageMZMCSettings"
+    PanScroll="{Binding ElementName=PanBack}" RenderOptions.BitmapScalingMode="LowQuality">
+    <local:MyScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="PanBack">
+        <StackPanel x:Name="PanMain" Margin="25,10" Grid.IsSharedSizeScope="True">
+            <local:MyCard Margin="0,15" Title="用户信息">
+                <Grid Margin="21,40,21,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="7"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="7"/>
+                        <RowDefinition Height="7"/>
+                        <RowDefinition Height="7"/>
+                        <RowDefinition Height="35"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left" Text="玩家名称" Margin="0,0,25,0" />
+                    <TextBlock Name="TextBlockUserName" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Text="玩家名称" Margin="0,0,25,0" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left" Text="登录状态" Margin="0,0,25,0" />
+                    <TextBlock Name="TextBlockIfUserLogin" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Text="登录状态" Margin="0,0,25,0" />
+                    <local:MyButton Grid.Row="7" Grid.Column="0" x:Name="ButtonLogin" MinWidth="150" Text="登录" Padding="13,0" Margin="0,0,20,0" />
+                    <local:MyButton Grid.Row="7" Grid.Column="1" x:Name="ButtonLogout" MinWidth="150" Text="登出" Padding="13,0" Margin="0,0,20,0" />
+                </Grid>
+            </local:MyCard>
+        </StackPanel>
+    </local:MyScrollViewer>
+</local:MyPageRight>
