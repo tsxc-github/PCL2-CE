@@ -547,12 +547,10 @@ Friend Module ModSecret
     Public IsCheckingUpdates As Boolean = False
     Public IsUpdateWaitingRestart As Boolean = False
     Public RemoteServer As New UpdatesWrapperModel({
-        New UpdatesMirrorChyanModel(),
-        New UpdatesRandomModel({
-                New UpdatesMinioModel("https://s3.pysio.online/pcl2-ce/", "Pysio"),
-                New UpdatesMinioModel("https://staticassets.naids.com/resources/pclce/", "Naids")
-            }),
-        New UpdatesMinioModel("https://github.com/PCL-Community/PCL2_CE_Server/raw/main/", "GitHub")
+        New UpdatesMinioModel("https://aliyun.update.pcl.mzmcos.tsxc.xyz/", "Aliyun"),
+        New UpdatesMinioModel("https://edgeone.update.pcl.mzmcos.tsxc.xyz/", "edgeone"),
+        New UpdatesMinioModel("https://cloudflare.update.pcl.mzmcos.tsxc.xyz/", "CloudFlare"),
+        New UpdatesMinioModel("https://github.com/tsxc-github/PCL2_CE_Server/raw/refs/heads/main/", "GitHub")
     })
     Public ReadOnly Property IsCurrentVersionBeta
         Get
