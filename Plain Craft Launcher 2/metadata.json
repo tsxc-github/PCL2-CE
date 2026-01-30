@@ -1,10 +1,10 @@
 ﻿{
-  "name": "Plain Craft Launcher Community Edition",
+  "name": "Plain Craft Launcher MZMC Edition",
   "version": {
-    "base": "2.14.0",
-    "upstream": "2.12.1",
-    "suffix": "beta.6",
-    "code": 504
+    "base": "0.3.0",
+    "upstream": "2.14.0 beta.6",
+    "suffix": "beta.1",
+    "code": 101
   },
   "licenses": [
     {
