@@ -24,13 +24,12 @@ body = """
 
 ---
 
-[如果你有 Mirror 酱 CDK 可以直接使用此高速下载源](https://mirrorchyan.com/zh/projects?rid=PCL2-CE&source=pcl2ce-gh-release)
 你也可以直接在下方的 Assets 中下载
 
 ---
 
-[GPG 签名公钥](https://github.com/PCL-Community/PCL2-CE/blob/dev/GPG-PUBLIC-KEY.asc)
-公钥指纹 `81D9430A309B84272D518584EDF4453F0BBB862E`
+[GPG 签名公钥](https://github.com/tsxc-github/PCL2-CE/blob/mzmc-dev/GPG-PUBLIC-KEY.asc)
+公钥指纹 `BCA99F1A4D1D1EE772BEA6B9027A48941D904CE6`
 
 """
 # Remove leading and trailing whitespaces from the changelog's body.
