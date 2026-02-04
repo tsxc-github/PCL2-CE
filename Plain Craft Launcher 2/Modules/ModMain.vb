@@ -519,7 +519,7 @@ EndHint:
     Public FrmSetupLeft As PageSetupLeft
     Public FrmSetupLaunch As PageSetupLaunch
     Public FrmSetupUI As PageSetupUI
-    Public FrmSetupSystem As PageSetupSystem
+    Public FrmSetupGameManage As PageSetupGameManage
     Public FrmSetupUpdate As PageSetupUpdate
     Public FrmSetupJava As PageSetupJava
     Public FrmHomePageMarket As PageHomepageMarket
@@ -527,6 +527,7 @@ EndHint:
     Public FrmSetupLog As PageSetupLog
     Public FrmSetupFeedback As PageSetupFeedback
     Public FrmSetupGameLink As PageSetupGameLink
+    Public FrmSetupLauncherMisc As PageSetupLauncherMisc
 
     '登录页面声明
     Public FrmLoginAuth As PageLoginAuth
