@@ -2,7 +2,7 @@
   "name": "Plain Craft Launcher MZMC Edition",
   "version": {
     "base": "0.3.0",
-    "upstream": "2.14.0",
+    "upstream": "2.14.2",
     "suffix": "beta.2",
     "code": 102
   },
