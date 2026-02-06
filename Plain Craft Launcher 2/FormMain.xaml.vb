@@ -224,10 +224,10 @@ Public Class FormMain
                                      "- Windows 系统版本与架构" & vbCrLf &
                                      "- 已安装的物理内存大小" & vbCrLf &
                                      "- NAT 与 IPv6 支持情况" & vbCrLf &
-                                     "- 是否使用过官方版 PCL、HMCL 或 BakaXL" & vbCrLf & vbCrLf &
+                                     "- 是否使用过官方版 PCL、PCLCE、HMCL 或 BakaXL" & vbCrLf & vbCrLf &
                                      "这些数据均不与你关联，我们也绝不会向第三方出售数据。" & vbCrLf &
                                      "如果不想参与该调查，可以选择拒绝，不会影响其他功能使用。" & vbCrLf &
-                                     "你可以随时在启动器设置中调整这项设置。", "参与 PCL CE 软硬件调查", "同意", "拒绝")
+                                     "你可以随时在启动器设置中调整这项设置。", "参与 PCL MZMC Edition 软硬件调查", "同意", "拒绝")
                     Case 1
                         Setup.Set("SystemTelemetry", True)
                     Case 2

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using PCL.Core.Logging;
 
 namespace PCL.Core.App;
@@ -521,9 +522,10 @@ public sealed class Lifecycle : ILifecycleService
     /// [请勿调用] 处理未捕获异常流程
     /// </summary>
     /// <param name="ex">异常对象</param>
-    public static void OnException(object ex)
+    public static void OnException(object sender, DispatcherUnhandledExceptionEventArgs ex)
     {
-        Context.Fatal("未捕获的异常", ex as Exception);
+        Context.Fatal("未捕获的异常", ex.Exception);
+        MZMC.MZMCService.App_DispatcherUnhandledException(sender, ex);
     }
 
     /// <summary>
@@ -537,7 +539,7 @@ public sealed class Lifecycle : ILifecycleService
         // 修改 STA 线程名
         Thread.CurrentThread.Name = "STA";
         // 注册全局事件
-        AppDomain.CurrentDomain.UnhandledException += (_, e) => OnException(e.ExceptionObject);
+        // AppDomain.CurrentDomain.UnhandledException += (sender, e) => OnException(sender,e);
         AppDomain.CurrentDomain.ProcessExit += (_, _) => _Exit();
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {

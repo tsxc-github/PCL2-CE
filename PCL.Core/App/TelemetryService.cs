@@ -11,6 +11,7 @@ using PCL.Core.Net;
 using PCL.Core.Net.Http.Client;
 using PCL.Core.Utils.OS;
 using STUN.Client;
+using Sentry;
 
 namespace PCL.Core.App;
 
@@ -33,6 +34,7 @@ public class TelemetryService : GeneralService
         public required string Launcher { get; set; }
         public required string LauncherBranch {get; set; }
         [JsonPropertyName("UsedOfficialPCL")] public required bool UsedOfficialPcl { get; set; }
+        [JsonPropertyName("UsedCommunityPCL")] public required bool UsedCommunityPcl { get; set; }
         [JsonPropertyName("UsedHMCL")] public required bool UsedHmcl { get; set; }
         [JsonPropertyName("UsedBakaXL")] public required bool UsedBakaXl { get; set; }
         public required ulong Memory { get; set; }
@@ -45,7 +47,6 @@ public class TelemetryService : GeneralService
 
     public override void Start()
     {
-        if (!Config.System.Telemetry) return;
         var telemetryKey = EnvironmentInterop.GetSecret("TELEMETRY_KEY");
         if (string.IsNullOrWhiteSpace(telemetryKey)) return;
         var appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -70,6 +71,7 @@ public class TelemetryService : GeneralService
             UsedOfficialPcl =
                 bool.TryParse(Registry.GetValue(@"HKEY_CURRENT_USER\Software\PCL", "SystemEula", "false") as string,
                     out var officialPcl) && officialPcl,
+            UsedCommunityPcl = Directory.Exists(Path.Combine(appDataFolder, "PCLCE")),
             UsedHmcl = Directory.Exists(Path.Combine(appDataFolder, ".hmcl")),
             UsedBakaXl = Directory.Exists(Path.Combine(appDataFolder, "BakaXL")),
             Memory = KernelInterop.GetPhysicalMemoryBytes().Total,
@@ -77,14 +79,15 @@ public class TelemetryService : GeneralService
             NatFilterBehaviour = natTest.State.FilteringBehavior.ToString(),
             Ipv6Status = NetworkInterfaceUtils.GetIPv6Status().ToString()
         };
-        using var response = HttpRequestBuilder
-            .Create("https://pcl2ce.pysio.online/post", HttpMethod.Post)
-            .WithAuthentication(telemetryKey).WithJsonContent(telemetry)
-            .SendAsync().Result;
-        if (response.IsSuccess)
-            Context.Info("已发送设备环境调查数据");
-        else
-            Context.Error("设备环境调查数据发送失败，请检查网络连接以及使用的版本");
+
+        var telemetryEvent = new SentryEvent();
+        telemetryEvent.Level = SentryLevel.Info;
+        telemetryEvent.Message = "设备环境调查数据";
+        telemetryEvent.TransactionName = "Telemetry";
+        telemetryEvent.Contexts.Add("Telemetry", telemetry);
+        SentrySdk.CaptureEvent(telemetryEvent);
+        Context.Info("已发送设备环境调查数据");
+        // Context.Error("设备环境调查数据发送失败，请检查网络连接以及使用的版本");
         Context.DeclareStopped();
     }
 }
