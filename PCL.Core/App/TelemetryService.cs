@@ -47,6 +47,10 @@ public class TelemetryService : GeneralService
 
     public override void Start()
     {
+        #if DEBUG
+        return;
+        #endif
+
         var telemetryKey = EnvironmentInterop.GetSecret("TELEMETRY_KEY");
         if (string.IsNullOrWhiteSpace(telemetryKey)) return;
         var appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
