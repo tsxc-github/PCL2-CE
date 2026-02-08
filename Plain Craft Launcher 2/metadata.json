@@ -3,8 +3,8 @@
   "version": {
     "base": "0.3.0",
     "upstream": "2.14.2",
-    "suffix": "beta.2",
-    "code": 102
+    "suffix": "beta.3",
+    "code": 103
   },
   "licenses": [
     {
