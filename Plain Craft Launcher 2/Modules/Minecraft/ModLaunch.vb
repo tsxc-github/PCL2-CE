@@ -324,6 +324,7 @@ NextInner:
         Legacy = 1
         Auth = 2
         Ms = 3
+        MZMC = 4
     End Enum
 
     '各个登录方式的对应数据
@@ -336,6 +337,45 @@ NextInner:
             Return obj IsNot Nothing AndAlso obj.GetHashCode() = GetHashCode()
         End Function
     End Class
+
+#Region "MZMC验证类型"
+    Public Class McLoginMZMC
+        Inherits McLoginData
+
+        ''' <summary>
+        ''' 登录用户名。
+        ''' </summary>
+        Public UserName As String
+        ''' <summary>
+        ''' 登录Token
+        ''' </summary>
+        Public Token As String
+        ''' <summary>
+        ''' 登录服务器基础地址。
+        ''' </summary>
+        Public BaseUrl As String
+        ''' <summary>
+        ''' 登录方式的描述字符串，如 “正版”、“统一通行证”。
+        ''' </summary>
+        Public Description As String
+        ''' <summary>
+        ''' 是否在本次登录中强制要求玩家重新选择角色，目前仅对 Authlib-Injector 生效。
+        ''' </summary>
+        Public ForceReselectProfile As Boolean = False
+        ''' <summary>
+        ''' 是否已经存在该验证信息，用于判断是否为新增档案。
+        ''' </summary>
+        Public IsExist As Boolean = False
+
+        Public Sub New(Type As McLoginType)
+            Me.Type = Type
+        End Sub
+        Public Overrides Function GetHashCode() As Integer
+            Return GetHash(UserName & BaseUrl & Type) Mod Integer.MaxValue
+        End Function
+
+    End Class
+#End Region
 
 #Region "第三方验证类型"
     Public Class McLoginServer
@@ -465,6 +505,8 @@ NextInner:
                 Loader = McLoginLegacyLoader
             Case McLoginType.Auth
                 Loader = McLoginAuthLoader
+            Case McLoginType.MZMC
+                Loader = McLoginMZMCLoader
         End Select
         '尝试加载
         Loader.WaitForExit(Data.Input, McLoginLoader, Data.IsForceRestarting)
@@ -479,6 +521,7 @@ NextInner:
     Public McLoginMsLoader As New LoaderTask(Of McLoginMs, McLoginResult)("Loader Login Ms", AddressOf McLoginMsStart) With {.ReloadTimeout = 1}
     Public McLoginLegacyLoader As New LoaderTask(Of McLoginLegacy, McLoginResult)("Loader Login Legacy", AddressOf McLoginLegacyStart)
     Public McLoginAuthLoader As New LoaderTask(Of McLoginServer, McLoginResult)("Loader Login Auth", AddressOf McLoginServerStart) With {.ReloadTimeout = 1000 * 60 * 10}
+    Public McLoginMZMCLoader As New LoaderTask(Of McLoginMZMC, McLoginResult)("Loader Login MZMC", AddressOf McLoginMZMCStart) With {.ReloadTimeout = 1000 * 60 * 10}
 
     '主加载函数，返回所有需要的登录信息
     Private McLoginMsRefreshTime As Long = 0 '上次刷新登录的时间
@@ -1188,8 +1231,251 @@ LoginFinish:
     End Sub
 #End Region
 
-#End Region
+#Region "MZMC 验证"
+        Private Sub McLoginMZMCStart(Data As LoaderTask(Of McLoginMZMC, McLoginResult))
+        Dim Input As McLoginMZMC = Data.Input
+        Dim NeedRefresh As Boolean = False, WasRefreshed As Boolean = False
+        ProfileLog("验证方式：" & Input.Description)
+        Data.Progress = 0.05
+        '尝试登录
+        If (Not Data.Input.ForceReselectProfile) AndAlso (Not IsCreatingProfile) Then
+            '尝试验证登录
+            Try
+                If Data.IsAborted Then Throw New ThreadInterruptedException
+                McLoginMZMCRequestValidate(Data)
+                GoTo LoginFinish
+            Catch ex As HttpWebException
+                Dim AllMessage = ex.ToString()
+                ProfileLog("验证登录失败：" & AllMessage)
+                If (AllMessage.Contains("超时") OrElse AllMessage.Contains("imeout")) AndAlso Not AllMessage.Contains("403") Then
+                    ProfileLog("已触发超时登录失败")
+                    Throw New Exception("$登录失败：连接登录服务器超时。" & vbCrLf & "请检查你的网络状况是否良好，或尝试使用 VPN！" & vbCrLf & vbCrLf & "详细信息：" & ex.InnerHttpException.WebResponse)
+                End If
+            Catch ex As Exception
+                Dim AllMessage = ex.ToString()
+                ProfileLog("验证登录失败：" & AllMessage)
+                Throw
+            End Try
+            Data.Progress = 0.25
+            '尝试刷新登录
+Refresh:
+            Try
+                If Data.IsAborted Then Throw New ThreadInterruptedException
+                McLoginMZMCRequestRefresh(Data, NeedRefresh)
+                GoTo LoginFinish
+            Catch ex As Exception
+                ProfileLog("刷新登录失败：" & ex.ToString())
+                If WasRefreshed Then Throw New Exception("二轮刷新登录失败", ex)
+            End Try
+            Data.Progress = If(NeedRefresh, 0.85, 0.45)
+        End If
+        '尝试普通登录
+        Try
+            If Data.IsAborted Then Throw New ThreadInterruptedException
+            NeedRefresh = McLoginMZMCRequestLogin(Data)
+        Catch ex As HttpWebException
+            ProfileLog("验证失败：" & ex.ToString())
+            Dim message As String = Nothing
+            Dim responseText = ex.InnerHttpException.WebResponse
+            Try
+                Dim err = JsonNode.Parse(responseText)("errorMessage")
+                If err IsNot Nothing Then message = "登录失败：" & err.ToString()
+            Catch
+                '忽略
+            End Try
+            If message Is Nothing Then message = "第三方验证登录失败，请检查你的网络状况是否良好。" & vbCrLf & vbCrLf & "详细信息：" & responseText
+            Throw New Exception("$" & message)
+        Catch ex As Exception
+            ProfileLog("验证失败：" & ex.ToString())
+            Throw New Exception("$第三方验证登录失败" & vbCrLf & vbCrLf & "详细信息：" & ex.ToString())
+        End Try
+        If NeedRefresh Then
+            ProfileLog("重新进行刷新登录")
+            WasRefreshed = True
+            Data.Progress = 0.65
+            GoTo Refresh
+        End If
+LoginFinish:
+        Data.Progress = 0.95
+    End Sub
+    Private Sub McLoginMZMCRequestValidate(ByRef Data As LoaderTask(Of McLoginMZMC, McLoginResult))
+        ProfileLog("验证登录开始（Validate, Authlib")
+        '提前缓存信息，否则如果在登录请求过程中退出登录，设置项目会被清空，导致输出存在空值
+        Dim AccessToken As String = ""
+        Dim ClientToken As String = ""
+        Dim Uuid As String = ""
+        Dim Name As String = ""
+        If SelectedProfile IsNot Nothing Then
+            AccessToken = SelectedProfile.AccessToken
+            ClientToken = SelectedProfile.ClientToken
+            Uuid = SelectedProfile.Uuid
+            Name = SelectedProfile.Username
+        End If
+        '发送登录请求
+        Dim RequestData As New JObject(
+            New JProperty("accessToken", AccessToken), New JProperty("clientToken", ClientToken))
+        NetRequestRetry(
+            Url:=Data.Input.BaseUrl & "/validate",
+            Method:="POST",
+            Data:=RequestData.ToString(0),
+            Headers:=New Dictionary(Of String, String) From {{"Accept-Language", "zh-CN"}},
+            ContentType:="application/json") '没有返回值的
+        '将登录结果输出
+        Data.Output.AccessToken = AccessToken
+        Data.Output.ClientToken = ClientToken
+        Data.Output.Uuid = Uuid
+        Data.Output.Name = Name
+        Data.Output.Type = "MZMC"
+        '不更改缓存，直接结束
+        ProfileLog("验证登录成功（Validate, Authlib")
+    End Sub
 
+    Private Sub McLoginMZMCRequestRefresh(ByRef Data As LoaderTask(Of McLoginMZMC, McLoginResult), RequestUser As Boolean)
+            Dim RefreshInfo As New JObject
+            Dim SelectProfile As New JObject From {
+                {"name", SelectedProfile.Username},
+                {"id", SelectedProfile.Uuid}
+            }
+            RefreshInfo.Add("selectedProfile", SelectProfile)
+            RefreshInfo.Add(New JProperty("accessToken", SelectedProfile.AccessToken))
+            RefreshInfo.Add(New JProperty("requestUser", True))
+            ProfileLog("刷新登录开始（Refresh, Authlib")
+            Dim LoginJson As JObject = GetJson(NetRequestRetry(
+                   Url:=Data.Input.BaseUrl & "/refresh",
+                   Method:="POST",
+                   Data:=RefreshInfo.ToString(0),
+                   Headers:=New Dictionary(Of String, String) From {{"Accept-Language", "zh-CN"}},
+                   ContentType:="application/json"))
+            '将登录结果输出
+            If LoginJson("selectedProfile") Is Nothing Then Throw New Exception("选择的角色 " & SelectedProfile.Username & " 无效！")
+            Data.Output.AccessToken = LoginJson("accessToken").ToString
+            Data.Output.ClientToken = LoginJson("clientToken").ToString
+            Data.Output.Uuid = LoginJson("selectedProfile")("id").ToString
+            Data.Output.Name = LoginJson("selectedProfile")("name").ToString
+            Data.Output.Type = "MZMC"
+            '保存缓存
+            Dim ProfileIndex = ProfileList.IndexOf(SelectedProfile)
+            ProfileList(ProfileIndex).Username = Data.Output.Name
+            ProfileList(ProfileIndex).AccessToken = Data.Output.AccessToken
+            ProfileList(ProfileIndex).ClientToken = Data.Output.ClientToken
+            ProfileList(ProfileIndex).Uuid = Data.Output.Uuid
+            ProfileList(ProfileIndex).Name = Data.Input.UserName
+            ProfileList(ProfileIndex).Token = Data.Input.Token
+        ProfileList(ProfileIndex).Type = McLoginType.MZMC
+        ProfileLog("刷新登录成功（Refresh, Authlib）")
+    End Sub
+
+    Private Function McLoginMZMCRequestLogin(ByRef Data As LoaderTask(Of McLoginMZMC, McLoginResult)) As Boolean
+        Try
+            Dim NeedRefresh As Boolean = False
+            ProfileLog("登录开始（Login, Authlib）")
+            Dim RequestData As New JObject(
+                    New JProperty("agent", New JObject(New JProperty("name", "Minecraft"), New JProperty("version", 1))),
+                    New JProperty("username", Data.Input.UserName),
+                    New JProperty("token", Data.Input.Token),
+                    New JProperty("requestUser", True))
+            Dim LoginJson As JObject = GetJson(NetRequestRetry(
+                    Url:=Data.Input.BaseUrl & "/authenticate",
+                    Method:="POST",
+                    Data:=RequestData.ToString(0),
+                    Headers:=New Dictionary(Of String, String) From {{"Accept-Language", "zh-CN"}},
+                    ContentType:="application/json"))
+            '检查登录结果
+            If LoginJson("availableProfiles").Count = 0 Then
+                If Data.Input.ForceReselectProfile Then Hint("你还没有创建角色，无法更换！", HintType.Critical)
+                Throw New Exception("$你还没有创建角色，请在创建角色后再试！")
+            ElseIf Data.Input.ForceReselectProfile AndAlso LoginJson("availableProfiles").Count = 1 Then
+                Hint("你的账户中只有一个角色，无法更换！", HintType.Critical)
+            End If
+            Dim SelectedName As String = Nothing
+            Dim SelectedId As String = Nothing
+            If (LoginJson("selectedProfile") Is Nothing OrElse Data.Input.ForceReselectProfile) AndAlso LoginJson("availableProfiles").Count > 1 Then
+                '要求选择档案；优先从缓存读取
+                NeedRefresh = True
+                Dim CacheId As String = If(SelectedProfile IsNot Nothing, SelectedProfile.Uuid, "")
+                For Each Profile In LoginJson("availableProfiles")
+                    If Profile("id").ToString = CacheId Then
+                        SelectedName = Profile("name").ToString
+                        SelectedId = Profile("id").ToString
+                        ProfileLog("根据缓存选择的角色：" & SelectedName)
+                    End If
+                Next
+                '缓存无效，要求玩家选择
+                If SelectedName Is Nothing Then
+                    ProfileLog("要求玩家选择角色")
+                    RunInUiWait(
+                                                Sub()
+                                                    Dim SelectionControl As New List(Of IMyRadio)
+                                                    Dim SelectionJson As New List(Of JToken)
+                                                    For Each Profile In LoginJson("availableProfiles")
+                                                        SelectionControl.Add(New MyRadioBox With {.Text = Profile("name").ToString})
+                                                        SelectionJson.Add(Profile)
+                                                    Next
+                                                    Dim SelectedIndex As Integer = MyMsgBoxSelect(SelectionControl, "选择使用的角色")
+                                                    SelectedName = SelectionJson(SelectedIndex)("name").ToString
+                                                    SelectedId = SelectionJson(SelectedIndex)("id").ToString
+                                                End Sub)
+
+                    ProfileLog("玩家选择的角色：" & SelectedName)
+                End If
+            Else
+                SelectedName = LoginJson("selectedProfile")("name").ToString
+                SelectedId = LoginJson("selectedProfile")("id").ToString
+            End If
+            '将登录结果输出
+            Data.Output.AccessToken = LoginJson("accessToken").ToString
+            Data.Output.ClientToken = LoginJson("clientToken").ToString
+            Data.Output.Name = SelectedName
+            Data.Output.Uuid = SelectedId
+            Data.Output.Type = "MZMC"
+            '获取服务器信息
+            Dim Response As String = NetGetCodeByRequestRetry(Data.Input.BaseUrl.Replace("/authserver", ""), Encoding.UTF8)
+            Dim ServerName As String = JObject.Parse(Response)("meta")("serverName").ToString()
+            '保存缓存
+            If Data.Input.IsExist Then
+                Dim ProfileIndex = ProfileList.IndexOf(SelectedProfile)
+                ProfileList(ProfileIndex).Username = Data.Output.Name
+                ProfileList(ProfileIndex).Uuid = Data.Output.Uuid
+                ProfileList(ProfileIndex).ServerName = ServerName
+                ProfileList(ProfileIndex).AccessToken = Data.Output.AccessToken
+                ProfileList(ProfileIndex).ClientToken = Data.Output.ClientToken
+                ProfileList(ProfileIndex).Type = McLoginType.MZMC
+            Else
+                Dim NewProfile As New McProfile With {
+                        .Type = McLoginType.MZMC,
+                        .Uuid = Data.Output.Uuid,
+                        .Username = Data.Output.Name,
+                        .Server = Data.Input.BaseUrl,
+                        .ServerName = ServerName,
+                        .Name = Data.Input.UserName,
+                        .Token = Data.Input.Token,
+                        .AccessToken = Data.Output.AccessToken,
+                        .ClientToken = Data.Output.ClientToken,
+                        .Expires = 1743779140286,
+                        .Desc = ""
+                    }
+                ProfileList.Add(NewProfile)
+                SelectedProfile = NewProfile
+                IsCreatingProfile = False
+            End If
+            SaveProfile()
+            ProfileLog("登录成功（Login, Authlib）")
+            Return NeedRefresh
+        Catch ex As HttpWebException
+            Throw
+        Catch ex As Exception
+            Dim AllMessage As String = ex.ToString()
+            ProfileLog("第三方验证失败: " & ex.ToString())
+            If ex.Message.StartsWithF("$") Then
+                Throw
+            Else
+                Throw New Exception("登录失败：" & ex.Message, ex)
+            End If
+        End Try
+    End Function
+
+#End Region
+#End Region
 #Region "Java 处理"
 
     Public McLaunchJavaSelected As JavaEntry = Nothing
@@ -1221,7 +1507,7 @@ LoginFinish:
             If ModeDebug Then Log("[Launch] [Debug] MC 1.5.2- 要求最高 Java 12")
             maxVer = New Version(1, 8, 999, 999)
         End If
-        
+
         '原版 26+：获取 Mojang 要求的 Java 版本
         Dim recommendedComponent As String = Nothing
         Dim recommendedCode As Integer =
@@ -1267,7 +1553,7 @@ LoginFinish:
                 '1.15：Java 8 - 15
                 minVer = If(New Version(1, 8, 0, 0) > minVer, New Version(1, 8, 0, 0), minVer)
                 maxVer = If(New Version(1, 15, 999, 999) < maxVer, New Version(1, 15, 999, 999), maxVer)
-            ElseIf CompareVersionGE(McInstanceSelected.Info.Forge, "34.0.0") AndAlso CompareVersionGE("36.2.25", McInstanceSelected.Info.Forge) Then
+            ElseIf CompareVersionGe(McInstanceSelected.Info.Forge, "34.0.0") AndAlso CompareVersionGe("36.2.25", McInstanceSelected.Info.Forge) Then
                 '1.16，Forge 34.X ~ 36.2.25：最高 Java 8u321
                 maxVer = If(New Version(1, 8, 0, 320) < maxVer, New Version(1, 8, 0, 321), maxVer)
             ElseIf McInstanceSelected.Info.Vanilla.Major >= 18 AndAlso McInstanceSelected.Info.Vanilla.Major < 19 AndAlso McInstanceSelected.Info.HasOptiFine Then '#305
@@ -1300,7 +1586,7 @@ LoginFinish:
             If ModeDebug Then Log("[Launch] [Debug] LiteLoader 要求最高 Java 8")
             maxVer = If(New Version(8, 999, 999, 999) < maxVer, New Version(8, 999, 999, 999), maxVer)
         End If
-        
+
         'LabyMod 检测
         If McInstanceSelected.Info.HasLabyMod Then
             If ModeDebug Then Log("[Launch] [Debug] LabyMod 要求至少 Java 21")
@@ -1317,7 +1603,7 @@ LoginFinish:
             Else
                 minVer = If(New Version(majorVersion, 0, 0, 0) > minVer, New Version(majorVersion, 0, 0, 0), minVer)
             End If
-            
+
             If maxVer < minVer Then maxVer = New Version(999, 999, 999, 999)
         End If
 
@@ -1359,7 +1645,7 @@ LoginFinish:
             '开始自动下载
             Dim javaLoader = GetJavaDownloadLoader()
             Try
-                javaLoader.Start(If(RecommendedComponent, javaCode), IsForceRestart:=True) '在 Java 22+ 时优先使用 Mojang 提供的 Component 字段
+                javaLoader.Start(If(recommendedComponent, javaCode), IsForceRestart:=True) '在 Java 22+ 时优先使用 Mojang 提供的 Component 字段
                 Do While javaLoader.State = LoadState.Loading AndAlso Not task.IsAborted
                     task.Progress = javaLoader.Progress
                     Thread.Sleep(10)
@@ -1595,7 +1881,7 @@ LoginFinish:
         DataList.Add("-cp ${classpath}") '把支持库添加进启动参数表
 
         'Authlib-Injector
-        If McLoginLoader.Output.Type = "Auth" Then
+        If McLoginLoader.Output.Type = "Auth" Or McLoginLoader.Output.Type = "MZMC" Then
             If McLaunchJavaSelected.Installation.MajorVersion >= 6 Then DataList.Add("-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT") '信任系统根证书（Meloong-Git/#5252）
             Dim Server As String = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
             Try
@@ -1609,15 +1895,15 @@ LoginFinish:
                 Throw New Exception($"无法连接到第三方登录服务器（{If(Server, Nothing)}）", ex)
             End Try
         End If
-        
+
         If Config.Instance.UseDebugLof4j2Config.Item(instance.PathIndie) Then
             If McInstanceSelected.ReleaseTime.Year >= 2017 Then
                 DataList.Insert(0, "-Dlog4j.configurationFile=""" & LaunchEnvUtils.ExtractDebugLog4j2Config() & """")
-            Else 
+            Else
                 DataList.Insert(0, "-Dlog4j.configurationFile=""" & LaunchEnvUtils.ExtractLegacyDebugLog4j2Config() & """")
             End If
         End If
-        
+
         '渲染器
         Dim Renderer = 0
         If Setup.Get("VersionAdvanceRenderer", instance:=McInstanceSelected) <> 0 Then
@@ -1642,7 +1928,7 @@ LoginFinish:
                 Log(ex, "添加代理信息到游戏失败，放弃加入", LogLevel.Hint)
             End Try
         End If
-        
+
         '添加 Java Wrapper 作为主 Jar
         If IsUtf8CodePage() AndAlso Not Setup.Get("LaunchAdvanceDisableJLW") AndAlso Not Setup.Get("VersionAdvanceDisableJLW", McInstanceSelected) Then
             If McLaunchJavaSelected.Installation.MajorVersion >= 9 Then DataList.Add("--add-exports cpw.mods.bootstraplauncher/cpw.mods.bootstraplauncher=ALL-UNNAMED")
@@ -1694,7 +1980,7 @@ NextInstance:
         SecretLaunchJvmArgs(DataList)
 
         'Authlib-Injector
-        If McLoginLoader.Output.Type = "Auth" Then
+        If McLoginLoader.Output.Type = "Auth" Or McLoginLoader.Output.Type = "MZMC" Then
             If McLaunchJavaSelected.Installation.MajorVersion >= 6 Then DataList.Add("-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT") '信任系统根证书（Meloong-Git/#5252）
             Dim Server As String = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
             Try
@@ -2507,6 +2793,8 @@ NextInstance:
                     text = text.Replace("{login}", replacer("正版"))
                 Case McLoginType.Auth
                     text = text.Replace("{login}", replacer("Authlib-Injector"))
+                Case McLoginType.MZMC
+                    text = text.Replace("{login}", replacer("MZMC"))
             End Select
         Else
             text = text.Replace("{user}", replacer(Nothing))

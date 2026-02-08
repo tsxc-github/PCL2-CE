@@ -535,6 +535,7 @@ EndHint:
     Public FrmLoginProfile As PageLoginProfile
     Public FrmLoginProfileSkin As PageLoginProfileSkin
     Public FrmLoginOffline As PageLoginOffline
+    Public FrmLoginMZMC As PageLoginMZMC
 
     '实例设置页面声明
     Public FrmInstanceLeft As PageInstanceLeft

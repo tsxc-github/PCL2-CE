@@ -2,6 +2,7 @@ using System;
 using PCL.Core.MZMC.Helper;
 using PCL.Core.MZMC.API;
 using System.Configuration;
+using System.Net;
 using System.Threading.Tasks;
 using PCL.Core.App;
 using Sentry;
@@ -28,10 +29,11 @@ namespace PCL.Core.MZMC
                 User.LoginByToken(Config.AppSettings.Settings["UserToken"].Value);
 
             StartSentry();
-
         }
 
         #endregion
+
+        public static HttpListener GlobalHttpListener = new HttpListener();
 
         public static Configuration Config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
         public static SDK.User User = new SDK.User();

@@ -4,15 +4,18 @@ using PCL.Core.MZMC.Helper;
 using RestSharp;
 using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
 using PCL.Core.App;
 
 namespace PCL.Core.MZMC.API
 {
 	public class SDK
 	{
-		private const string BaseUrl= "https://api.mzmc.top";
+		private const string BaseUrl= "https://auth.tsxc.xyz"; //TODO: 修改为实际地址
 
 		private const string ClientId = "5"; // 客户端ID
 		private const string ClientSecret = "oIZryQhWCuoKEG985nSNHALSoFnl4kBt"; // 客户端密钥
@@ -32,6 +35,53 @@ namespace PCL.Core.MZMC.API
 				return new Message(false,result.Content);
 			dynamic content=JsonConvert.DeserializeObject(result.Content);
 			return new Message(result.IsSuccessStatusCode,content.msg.Value,content.data);
+		}
+
+		public static string GetCodeWithOauth()
+		{
+			// 打开网页
+			var psi = new ProcessStartInfo(OAuthUrl)
+			{
+				WorkingDirectory = "/",
+				UseShellExecute = true,
+				CreateNoWindow = true
+			};
+			Process.Start(psi);
+
+			if (MZMCService.GlobalHttpListener.IsListening == true)
+			{
+				MZMCService.GlobalHttpListener.Stop();
+			}
+			MZMCService.GlobalHttpListener.Prefixes.Add(RedirectUrl);
+			MZMCService.GlobalHttpListener.Start();
+
+			var listenTask=MZMCService.GlobalHttpListener.GetContextAsync();
+			while(listenTask.IsCompleted==false)
+            {
+                Task.Delay(100).Wait();
+            }
+            var code = listenTask.Result.Request.QueryString.Get("code");
+            listenTask.Result.Response.ContentType = "text/plain;charset=UTF-8";
+            using (var stream = listenTask.Result.Response.OutputStream)
+            {
+	            stream.Write(Encoding.UTF8.GetBytes("登录成功"), 0, Encoding.UTF8.GetBytes("登录成功").Length);
+            }
+            MZMCService.GlobalHttpListener.Stop();
+            return code;
+		}
+
+		public static Message GetTokenWithCode(string code)
+		{
+			var request = new RestRequest("/user/oauth2/token", Method.Post);
+			request.AddJsonBody(new { client_id = ClientId, client_secret = ClientSecret, code = code });
+			var client = new RestClient(BaseUrl);
+			var result = client.Execute(request);
+			if(result.ResponseStatus==ResponseStatus.Error||result.Content.Contains("error"))
+				return new Message(false,result.Content);
+			dynamic content=JsonConvert.DeserializeObject(result.Content);
+			var message = new Message(result.IsSuccessStatusCode,"操作成功",content);
+
+			return message;
 		}
 
 		public class User

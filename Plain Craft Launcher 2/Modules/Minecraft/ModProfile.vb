@@ -59,6 +59,10 @@ Public Module ModProfile
         ''' </summary>
         Public Password As String
         ''' <summary>
+        ''' 登录Token，用于MZMC验证
+        ''' </summary>
+        Public Token As String
+        ''' <summary>
         ''' 联网验证档案的验证有效期
         ''' </summary>
         Public Expires As Int64
@@ -130,6 +134,21 @@ Public Module ModProfile
                         .Desc = Profile("desc"),
                         .SkinHeadId = Profile("skinHeadId")
                     }
+                ElseIf Profile("type") = "MZMC" Then
+                    newProfile = New McProfile With {
+                        .Type = McLoginType.MZMC,
+                        .Uuid = Profile("uuid"),
+                        .Username = Profile("username"),
+                        .AccessToken = EncryptHelper.SecretDecrypt(Profile("accessToken")),
+                        .Expires = Profile("expires"),
+                        .Server = Profile("server"),
+                        .ServerName = Profile("serverName"),
+                        .Name = EncryptHelper.SecretDecrypt(Profile("name")),
+                        .Token = EncryptHelper.SecretDecrypt(Profile("token")),
+                        .ClientToken = EncryptHelper.SecretDecrypt(Profile("clientToken")),
+                        .Desc = Profile("desc"),
+                        .SkinHeadId = Profile("skinHeadId")
+                    }
                 Else
                     newProfile = New McProfile With {
                         .Type = McLoginType.Legacy,
@@ -195,7 +214,22 @@ Public Module ModProfile
                             {"desc", Profile.Desc},
                             {"skinHeadId", Profile.SkinHeadId}
                         }
-                    Else
+                    ElseIf Profile.Type = McLoginType.MZMC Then
+                        profileJobj = New JObject From {
+                            {"type", "MZMC"},
+                            {"uuid", Profile.Uuid},
+                            {"username", Profile.Username},
+                            {"name", EncryptHelper.SecretEncrypt(Profile.Name)},
+                            {"server", Profile.Server},
+                            {"serverName", Profile.ServerName},
+                            {"expires", Profile.Expires},
+                            {"token", EncryptHelper.SecretEncrypt(Profile.Token)},
+                            {"desc", Profile.Desc},
+                            {"clientToken", EncryptHelper.SecretEncrypt(Profile.ClientToken)},
+                            {"accessToken", EncryptHelper.SecretEncrypt(Profile.AccessToken)},
+                            {"skinHeadId", Profile.SkinHeadId}
+                        }
+                    ElseIf Profile.Type = McLoginType.Legacy Then
                         profileJobj = New JObject From {
                             {"type", "offline"},
                             {"uuid", Profile.Uuid},
@@ -203,6 +237,8 @@ Public Module ModProfile
                             {"desc", Profile.Desc},
                             {"skinHeadId", Profile.SkinHeadId}
                         }
+                    Else
+                        throw New Exception("未知的验证类型")
                     End If
                     list.Add(profileJobj)
                 Next
@@ -236,12 +272,17 @@ Public Module ModProfile
         Dim selectedAuthTypeNum As Integer? = Nothing '验证类型序号
         RunInUiWait(Sub()
                         Dim authTypeList As List(Of IMyRadio)
-                        Dim HasMinecraftAccount = ProfileList.Any(Function(x) x.Type = McLoginType.Ms)
+                        Dim HasMinecraftAccount = ProfileList.Any(Function(x) x.Type = McLoginType.MZMC)
                         Dim Restricted = RegionUtils.IsRestrictedFeatAllowed AndAlso ProfileList.Count > 0
                         Dim HasNetwork = NetworkHelper.IsNetworkAvailable()
                         If HasMinecraftAccount OrElse Restricted OrElse Not HasNetwork Then
                             authTypeList = New List(Of IMyRadio) From
                             {
+                               New MyListItem With {
+                                   .Title = "MZMC验证",
+                                   .Type = MyListItem.CheckType.RadioBox,
+                                   .Logo = Logo.IconMZMC
+                               },
                                 New MyListItem With {
                                     .Title = "正版验证",
                                     .Type = MyListItem.CheckType.RadioBox,
@@ -261,9 +302,9 @@ Public Module ModProfile
                             authTypeList = New List(Of IMyRadio) From
                             {
                                 New MyListItem With {
-                                    .Title = "正版验证",
+                                    .Title = "MZMC验证",
                                     .Type = MyListItem.CheckType.RadioBox,
-                                    .Logo = Logo.IconButtonAuth
+                                    .Logo = Logo.IconMZMC
                                 }
                             }
                         End If
@@ -271,11 +312,13 @@ Public Module ModProfile
                     End Sub)
         If selectedAuthTypeNum Is Nothing Then Exit Sub
         IsCreatingProfile = True
-        If selectedAuthTypeNum = 0 Then '正版验证
+        If selectedAuthTypeNum = 0 Then 'MZMC验证
+            RunInUi(Sub() FrmLaunchLeft.RefreshPage(True, McLoginType.MZMC))
+        ElseIf selectedAuthTypeNum = 1 Then '正版验证
             RunInUi(Sub() FrmLaunchLeft.RefreshPage(True, McLoginType.Ms))
-        ElseIf selectedAuthTypeNum = 1 Then '第三方验证
+        ElseIf selectedAuthTypeNum = 2 Then '第三方验证
             RunInUi(Sub() FrmLaunchLeft.RefreshPage(True, McLoginType.Auth))
-        Else '离线验证
+        ElseIf selectedAuthTypeNum = 3 Then '离线验证
             RunInUi(Sub() FrmLaunchLeft.RefreshPage(True, McLoginType.Legacy))
         End If
     End Sub
@@ -537,6 +580,12 @@ Write:
                     profile.Server = el.GetProperty("serverBaseURL").GetString()
                     profile.Name = el.GetProperty("username").GetString()
                     profile.ClientToken = el.GetProperty("clientToken").GetString()
+                Case "MZMC"
+                    profile.Type = McLoginType.MZMC
+                    profile.Username = el.GetProperty("displayName").GetString()
+                    profile.Name = el.GetProperty("username").GetString()
+                    profile.ClientToken = el.GetProperty("clientToken").GetString()
+                    profile.Server = el.GetProperty("serverBaseURL").GetString()
                 Case Else
                     profile.Type = McLoginType.Legacy
                     profile.Username = el.GetProperty("username").GetString()
@@ -564,6 +613,12 @@ Write:
                 dict("username") = profile.Name
                 dict("type") = "authlibInjector"
                 dict("clientToken") = profile.ClientToken
+            Case McLoginType.MZMC
+                dict("displayName") = profile.Username
+                dict("type") = "MZMC"
+                dict("username") = profile.Name
+                dict("clientToken") = profile.ClientToken
+                dict("serverBaseURL") = profile.Server
             Case Else
                 dict("username") = profile.Username
                 dict("type") = "offline"
@@ -629,8 +684,10 @@ Write:
             If Not String.IsNullOrWhiteSpace(profile.ServerName) Then info += $" / {profile.ServerName}"
         ElseIf profile.Type = McLoginType.Ms Then
             info += "正版验证"
-        Else
+        ElseIf profile.Type = McLoginType.Legacy Then
             info += "离线验证"
+        ElseIf profile.Type = McLoginType.MZMC Then
+            info += "MZMC验证"
         End If
         If Not String.IsNullOrWhiteSpace(profile.Desc) Then info += $"，{profile.Desc}"
         Return info
@@ -653,6 +710,12 @@ Write:
                     .Type = McLoginType.Auth,
                     .IsExist = (FrmLoginAuth Is Nothing)
                 }
+            ElseIf authType = McLoginType.MZMC Then
+                Return New McLoginMZMC(McLoginType.MZMC) With {
+                    .Description = "MZMC",
+                    .Type = McLoginType.MZMC,
+                    .IsExist = (FrmLoginMZMC Is Nothing)
+                }
             ElseIf authType = McLoginType.Ms Then
                 Return New McLoginMs
             Else
@@ -669,6 +732,16 @@ Write:
                     .Type = McLoginType.Auth,
                     .IsExist = (FrmLoginAuth Is Nothing)
                 }
+            ElseIf authType = McLoginType.MZMC Then
+                Return New McLoginMZMC(McLoginType.MZMC) With {
+                    .BaseUrl = SelectedProfile.Server,
+                    .UserName = SelectedProfile.Name,
+                    .Token = SelectedProfile.Token,
+                    .Description = "MZMC",
+                    .Type = McLoginType.MZMC,
+                    .IsExist = (FrmLoginMZMC Is Nothing)
+                }
+            ElseIf authType = McLoginType.Legacy Then
             ElseIf authType = McLoginType.Ms Then
                 If McLoginMsLoader.State = LoadState.Finished Then
                     Return New McLoginMs With {
@@ -703,6 +776,8 @@ Write:
             Case McLoginType.Ms
                 Return ""
             Case McLoginType.Auth
+                Return ""
+            Case McLoginType.MZMC
                 Return ""
         End Select
         Return "未知的验证方式"

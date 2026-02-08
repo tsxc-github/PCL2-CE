@@ -129,6 +129,8 @@ Public Class PageLaunchLeft
                 LabLaunchingMethod.Text = "正版验证"
             Case McLoginType.Auth
                 LabLaunchingMethod.Text = "第三方验证" & If(Not SelectedProfile.ServerName = "", " / " & SelectedProfile.ServerName, "")
+            Case McLoginType.MZMC
+                LabLaunchingMethod.Text = "MZMC验证"
         End Select
         '初始化页面
         LabLaunchingName.Text = McInstanceSelected.Name
@@ -202,6 +204,7 @@ Public Class PageLaunchLeft
         Profile
         ProfileSkin
         Offline
+        MZMC
     End Enum
     ''' <summary>
     ''' 当前页面的种类。
@@ -225,6 +228,9 @@ Public Class PageLaunchLeft
             Case PageType.Offline
                 If IsNothing(FrmLoginOffline) Then FrmLoginOffline = New PageLoginOffline
                 Return FrmLoginOffline
+            Case PageType.MZMC
+                If IsNothing(FrmLoginMZMC) Then FrmLoginMZMC = New PageLoginMZMC
+                Return FrmLoginMZMC
             Case Else
                 Throw New ArgumentOutOfRangeException("Type", "即将切换的登录分页编号越界")
         End Select
@@ -290,6 +296,7 @@ Public Class PageLaunchLeft
             If TargetLoginType = McLoginType.Ms Then Type = PageType.Ms
             If TargetLoginType = McLoginType.Auth Then Type = PageType.Auth
             If TargetLoginType = McLoginType.Legacy Then Type = PageType.Offline
+            If TargetLoginType = McLoginType.MZMC Then Type = PageType.MZMC
         Else
             If SelectedProfile IsNot Nothing Then
                 Type = PageType.ProfileSkin
