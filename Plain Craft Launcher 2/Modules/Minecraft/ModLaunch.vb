@@ -1883,7 +1883,13 @@ LoginFinish:
         'Authlib-Injector
         If McLoginLoader.Output.Type = "Auth" Or McLoginLoader.Output.Type = "MZMC" Then
             If McLaunchJavaSelected.Installation.MajorVersion >= 6 Then DataList.Add("-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT") '信任系统根证书（Meloong-Git/#5252）
-            Dim Server As String = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
+            Dim Server As String = ""
+            If McLoginLoader.Output.Type = "Auth" Then
+                Server = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
+            End If
+            If McLoginLoader.Output.Type = "MZMC" Then
+                Server = McLoginMZMCLoader.Input.BaseUrl.Replace("/authserver", "")
+            End If
             Try
                 Dim Response As String = NetGetCodeByRequestRetry(Server, Encoding.UTF8)
                 DataList.Insert(0, "-javaagent:""" & PathPure & "authlib-injector.jar""=" & Server &
@@ -1982,7 +1988,13 @@ NextInstance:
         'Authlib-Injector
         If McLoginLoader.Output.Type = "Auth" Or McLoginLoader.Output.Type = "MZMC" Then
             If McLaunchJavaSelected.Installation.MajorVersion >= 6 Then DataList.Add("-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT") '信任系统根证书（Meloong-Git/#5252）
-            Dim Server As String = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
+            Dim Server As String = ""
+            If McLoginLoader.Output.Type = "Auth" Then
+                Server = McLoginAuthLoader.Input.BaseUrl.Replace("/authserver", "")
+            End If
+            If McLoginLoader.Output.Type = "MZMC" Then
+                Server = McLoginMZMCLoader.Input.BaseUrl.Replace("/authserver", "")
+            End If
             Try
                 Dim Response As String = NetGetCodeByRequestRetry(Server, Encoding.UTF8)
                 DataList.Insert(0, "-javaagent:""" & PathPure & "authlib-injector.jar""=" & Server &
