@@ -741,7 +741,6 @@ Write:
                     .Type = McLoginType.MZMC,
                     .IsExist = (FrmLoginMZMC Is Nothing)
                 }
-            ElseIf authType = McLoginType.Legacy Then
             ElseIf authType = McLoginType.Ms Then
                 If McLoginMsLoader.State = LoadState.Finished Then
                     Return New McLoginMs With {
