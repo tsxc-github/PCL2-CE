@@ -102,7 +102,10 @@ public sealed partial class TelemetryService
         telemetryEvent.Level = SentryLevel.Info;
         telemetryEvent.Message = "设备环境调查数据";
         telemetryEvent.TransactionName = "Telemetry";
-        telemetryEvent.Contexts.Add("Telemetry", telemetry);
+        foreach (var info in telemetry.GetType().GetProperties())
+        {
+            telemetryEvent.SetTag(info.Name, info.GetValue(telemetry).ToString());
+        }
         SentrySdk.CaptureEvent(telemetryEvent);
         Context.Info("已发送设备环境调查数据");
         // Context.Error("设备环境调查数据发送失败，请检查网络连接以及使用的版本");
