@@ -105,7 +105,7 @@ public static partial class States
         /// <summary>
         /// 启动时的社区版提示。
         /// </summary>
-        [ConfigItem<bool>("UiLauncherCEHint", true)] public partial bool CEMessage { get; set; }
+        [ConfigItem<bool>("UiLauncherCEHint", false)] public partial bool CEMessage { get; set; }
 
         /// <summary>
         /// 投影管理首次使用提示。
