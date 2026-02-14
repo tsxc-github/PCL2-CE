@@ -5,7 +5,7 @@ namespace PCL.Core.MZMC.Yggdrasil;
 
 public class Yggdrasil
 {
-    public const string ServerUrl = "https://auth.tsxc.xyz"; //TODO:修改一下终结点
+    public const string ServerUrl = "https://api.mzmc.top";
     public static string GetToken()
     {
         var result = SDK.GetTokenWithCode(SDK.GetCodeWithOauth());

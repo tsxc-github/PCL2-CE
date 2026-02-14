@@ -15,7 +15,7 @@ namespace PCL.Core.MZMC.API
 {
 	public class SDK
 	{
-		private const string BaseUrl= "https://auth.tsxc.xyz"; //TODO: 修改为实际地址
+		private const string BaseUrl= "https://api.mzmc.top";
 
 		private const string ClientId = "5"; // 客户端ID
 		private const string ClientSecret = "oIZryQhWCuoKEG985nSNHALSoFnl4kBt"; // 客户端密钥
