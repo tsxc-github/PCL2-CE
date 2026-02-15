@@ -14,30 +14,8 @@ Public Class PageSetupUpdate
     
     Public UpdateInfo As VersionDataModel = Nothing
     
-    Private Enum UpdateStatus
-        Checking = 0
-        Available = 1
-        [Error] = 2
-        Latest = 3
-    End Enum
-    
-    Private Async Function IsLatestAsync() As Task(Of UpdateStatus)
-        Try
-            If Await RemoteServer.IsLatestAsync(
-                If(IsCurrentVersionBeta, UpdateChannel.beta, UpdateChannel.stable),
-                If(IsArm64System, UpdateArch.arm64, UpdateArch.x64),
-                SemVer.Parse(VersionBaseName),
-                VersionCode) Then
-                Log("[Update] 已是最新版本")
-                Return UpdateStatus.Latest
-            Else 
-                Log("[Update] 有可用的新版本")
-                Return UpdateStatus.Available
-            End If
-        Catch ex As Exception
-            Log(ex, "无法获取最新版本信息，请检查网络连接", LogLevel.Hint)
-            Return UpdateStatus.Error
-        End Try
+    Private Async Function IsLatestAsync() As Task(Of VersionStatus)
+        return GetVersionStatus()
     End Function
     
     Public Async Sub CheckUpdate() Handles BtnCheckAgain.Click
@@ -47,19 +25,11 @@ Public Class PageSetupUpdate
         TextCurrentDesc.Text = "正在检查更新..."
         BtnCheckAgain.IsEnabled = False
         Select Case Await IsLatestAsync()
-            Case UpdateStatus.Available
+            Case VersionStatus.NotLatest
                 Dim checkUpdateEx As Exception = Nothing
                 Try
-                    UpdateInfo = RemoteServer.GetLatestVersion(
-                        If(IsCurrentVersionBeta, UpdateChannel.beta, UpdateChannel.stable),
-                        If(IsArm64System, UpdateArch.arm64, UpdateArch.x64))
-                    TextUpdateName.Text = "PCL CE " & VersionNameFormat(UpdateInfo.VersionName)
-                    Dim summary = UpdateInfo.Changelog.Between("<summary>", "</summary>")
-                    If Not UpdateInfo.Changelog.Contains("<summary>") OrElse String.IsNullOrWhiteSpace(summary.Trim()) Then
-                        TextChangelog.Text = "开发者似乎忘记提供更新摘要了...也许你可以点击下方看看完整更新日志？"
-                    Else
-                        TextChangelog.Text = summary
-                    End If
+                    Log("[Update] 更新设置: 自动下载并提示更新")
+                    UpdateStart(UpdateType.DownloadAndPrompt)
                 Catch ex As Exception
                     checkUpdateEx = ex
                 End Try
@@ -85,12 +55,12 @@ Public Class PageSetupUpdate
                 End If
                 CardUpdate.Visibility = Visibility.Visible
                 CardCheck.Visibility = Visibility.Collapsed
-            Case UpdateStatus.Latest
+            Case VersionStatus.Latest
                 CardUpdate.Visibility = Visibility.Collapsed
                 CardCheck.Visibility = Visibility.Visible
                 BtnCheckAgain.IsEnabled = True
                 TextCurrentDesc.Text = "已是最新版本"
-            Case UpdateStatus.Error
+            Case VersionStatus.Unknown
                 CardUpdate.Visibility = Visibility.Collapsed
                 CardCheck.Visibility = Visibility.Visible
                 BtnCheckAgain.IsEnabled = True

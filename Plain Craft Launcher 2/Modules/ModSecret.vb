@@ -319,10 +319,10 @@ Friend Module ModSecret
     End Enum
     Public Function GetVersionStatus() As VersionStatus
         Try
-            If IsCurrentVersionBeta AndAlso Not Config.Update.UpdateChannel = 1 Then
+            If IsCurrentVersionBeta Then
                 Dim isNewerThanStable = RemoteServer.IsLatest(UpdateChannel.stable, If(IsArm64System, UpdateArch.arm64, UpdateArch.x64), SemVer.Parse(VersionBaseName), VersionCode)
                 Dim isBetaLatest = RemoteServer.IsLatest(UpdateChannel.beta, If(IsArm64System, UpdateArch.arm64, UpdateArch.x64), SemVer.Parse(VersionBaseName), VersionCode)
-                Return isNewerThanStable AndAlso isBetaLatest
+                Return Not (isNewerThanStable AndAlso isBetaLatest)
             End If
             Return If(RemoteServer.IsLatest(
                 If(IsCurrentVersionBeta, UpdateChannel.beta, UpdateChannel.stable),
@@ -347,9 +347,13 @@ Friend Module ModSecret
         Dim dlTargetPath As String = ExePath + "PCL\Plain Craft Launcher Community Edition.exe"
         RunInNewThread(Sub()
                            Try
-                               Dim version = RemoteServer.GetLatestVersion(
-                               If(IsCurrentVersionBeta, UpdateChannel.beta, UpdateChannel.stable),
-                               If(IsArm64System, UpdateArch.arm64, UpdateArch.x64))
+                               Dim channel = If(IsCurrentVersionBeta, UpdateChannel.beta, UpdateChannel.stable)
+                               Dim arch = If(IsArm64System, UpdateArch.arm64, UpdateArch.x64)
+                               Dim version = RemoteServer.GetLatestVersion(channel, arch)
+                               If Not SemVer.Parse(version.VersionName) > SemVer.Parse(VersionBaseName) Then
+                                   channel = UpdateChannel.stable
+                                   version = RemoteServer.GetLatestVersion(channel, arch)
+                               End If
                                WriteFile($"{PathTemp}CEUpdateLog.md", version.Changelog)
                                Log($"[Update] 远程最新版本: {version.VersionName}, 当前版本: {VersionBaseName}")
                                If Not SemVer.Parse(version.VersionName) > SemVer.Parse(VersionBaseName) Then Return
@@ -365,9 +369,7 @@ Friend Module ModSecret
                                '构造步骤加载器
                                Dim loaders As New List(Of LoaderBase)
                                '下载
-                               loaders.AddRange(RemoteServer.GetDownloadLoader(
-                                                If(IsCurrentVersionBeta, UpdateChannel.beta, UpdateChannel.stable),
-                                                If(IsArm64System, UpdateArch.arm64, UpdateArch.x64), dlTargetPath))
+                               loaders.AddRange(RemoteServer.GetDownloadLoader(channel,arch, dlTargetPath))
                                loaders.Add(New LoaderTask(Of Integer, Integer)("校验更新", Sub()
                                                                                            Dim curHash = GetFileSHA256(dlTargetPath)
                                                                                            If curHash <> version.SHA256 Then
