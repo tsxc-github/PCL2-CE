@@ -8,6 +8,7 @@ using PCL.Core.App;
 using Sentry;
 using System.Windows.Threading;
 using System.Windows;
+using PCL.Core.App.IoC;
 using PCL.Core.Utils.OS;
 
 namespace PCL.Core.MZMC
